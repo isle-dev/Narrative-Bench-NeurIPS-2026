@@ -2,7 +2,7 @@
 
 NarrativeBench evaluates the information seeking capabilities models need to navigate diverse narratives across languages. It accompanies *The Narrative Gap: Can LLMs Help Us Navigate Diverse Narratives Across Languages?*
 
-**[Dataset and dataset card](https://huggingface.co/datasets/nikhilsk/narrative-bench)**
+**[Dataset and dataset card](https://huggingface.co/datasets/jhu-clsp/narrative-bench)**
 
 The benchmark contains 1,333 articles across 23 contested topics, 460 Reddit-grounded queries, and 4,800 evaluation cases across 24 query languages. Recorded responses cover 15 model configurations.
 
@@ -10,7 +10,7 @@ The benchmark contains 1,333 articles across 23 contested topics, 460 Reddit-gro
 
 ```bash
 python -m pip install -r requirements.txt
-hf download nikhilsk/narrative-bench --repo-type dataset --revision 7bd71f03c96bbd1265a93f4bdc4cf40274aac56e --local-dir benchmark
+hf download jhu-clsp/narrative-bench --repo-type dataset --revision 8a4f5e7d7582fac1f03d2e3cbbedb34280676339 --local-dir benchmark
 python code/narrativebench.py validate --root benchmark
 python code/narrativebench.py replay --root benchmark --out results.json
 ```
