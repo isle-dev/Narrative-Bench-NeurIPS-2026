@@ -1,0 +1,11 @@
+.env
+.env.*
+.venv/
+__pycache__/
+*.pyc
+benchmark/
+inputs.jsonl
+predictions.jsonl
+language-labels.jsonl
+scores.jsonl
+results.json

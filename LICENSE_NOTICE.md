@@ -1,0 +1,1 @@
+Dataset annotation and curation metadata retain CC BY-NC-SA 4.0. Source-article rights remain with their publishers; article URLs and attribution are provided in the data. Software dependencies and model weights retain their own licenses.

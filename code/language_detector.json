@@ -1,0 +1,12 @@
+{
+  "model": "facebook/fasttext-language-identification",
+  "revision": "3af127d4124fc58b75666f3594bb5143b9757e78",
+  "sha256": "8ded5749a2ad79ae9ab7c9190c7c8b97ff20d54ad8b9527ffa50107238fc7f6a",
+  "filename": "model.bin",
+  "bytes": 1176355829,
+  "license": "CC-BY-NC-4.0",
+  "runtime": "fasttext-wheel==0.9.2",
+  "probability_threshold": 0.8,
+  "margin_threshold": 0.2,
+  "persian_dari_family_compatible": true
+}
