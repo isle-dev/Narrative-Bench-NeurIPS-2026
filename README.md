@@ -10,7 +10,7 @@ The benchmark contains 1,333 articles across 23 contested topics, 460 Reddit-gro
 
 ```bash
 python -m pip install -r requirements.txt
-hf download jhu-clsp/narrative-bench --repo-type dataset --revision 8a4f5e7d7582fac1f03d2e3cbbedb34280676339 --local-dir benchmark
+hf download jhu-clsp/narrative-bench --repo-type dataset --revision ce3c17f3bf9c9e13d7ede4cc21af4a5d2e019955 --local-dir benchmark
 python code/narrativebench.py validate --root benchmark
 python code/narrativebench.py replay --root benchmark --out results.json
 ```
