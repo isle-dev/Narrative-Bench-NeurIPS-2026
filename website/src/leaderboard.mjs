@@ -7,11 +7,41 @@ function loadPlotly() {
   return plotly;
 }
 
+export function filteredResults(paper, slice) {
+  const rows = paper.rows.map(({ id, name }) => ({ id, name, cells: [] }));
+  paper.columns.forEach((column, index) => {
+    const values = rows.map(({ id }) => {
+      if (column.task) {
+        const score = slice?.scores[id]?.[column.task];
+        return score == null ? null : score * 100;
+      }
+      return slice?.diagnostics?.[id]?.[column.diagnostic] ?? null;
+    });
+    const distances = values.map(value => value == null ? null : column.task ? 100 - value : value);
+    const worst = Math.max(0, ...distances);
+    for (const [row, value] of values.entries()) {
+      if (value == null) {
+        rows[row].cells[index] = { value: null, bin: null, display: '—' };
+        continue;
+      }
+      const display = column.task ? (Math.round(value * 10) / 10).toFixed(1) : value.toFixed(column.decimals);
+      const bin = worst > 0 ? Math.min(paper.palette.length - 1, Math.floor(distances[row] / worst * paper.palette.length)) : 0;
+      rows[row].cells[index] = { value, bin, display };
+    }
+  });
+  return { ...paper, rows };
+}
+
 export function paperResultsRows(paper, sort) {
   if (sort === 'paper') return paper.rows;
   const index = Number(sort);
   const direction = paper.columns[index].task ? -1 : 1;
-  return [...paper.rows].sort((a, b) => direction * (a.cells[index].value - b.cells[index].value));
+  return [...paper.rows].sort((a, b) => {
+    const left = a.cells[index].value;
+    const right = b.cells[index].value;
+    if (left == null || right == null) return Number(left == null) - Number(right == null);
+    return direction * (left - right);
+  });
 }
 
 export function paperResultsFigure(paper, sort, width) {
@@ -24,9 +54,11 @@ export function paperResultsFigure(paper, sort, width) {
       text: cells.map(cell => cell.display),
       textposition: 'inside', insidetextanchor: 'middle', constraintext: 'none',
       insidetextfont: { size: 12, color: cells.map(cell => cell.bin === 4 ? '#f8f8fc' : '#182135') },
-      marker: { color: cells.map(cell => paper.palette[cell.bin]), line: { color: '#f8f8fc', width: 1 } },
+      marker: { color: cells.map(cell => paper.palette[cell.bin] ?? '#e4eaf2'), line: { color: '#f8f8fc', width: 1 } },
       customdata: cells.map(cell => [cell.bin * 20, (cell.bin + 1) * 20]),
-      hovertemplate: `<b>%{y}</b><br>${column.description}: %{text} (${column.unit})<br>%{customdata[0]}–%{customdata[1]}% distance from ideal<extra></extra>`,
+      hovertemplate: cells.map(cell => cell.value == null
+        ? `<b>%{y}</b><br>${column.description}: unavailable for these filters<extra></extra>`
+        : `<b>%{y}</b><br>${column.description}: %{text} (${column.unit})<br>%{customdata[0]}–%{customdata[1]}% distance from ideal<extra></extra>`),
     };
   });
   const group = (text, x, y, size = 12) => ({
@@ -59,53 +91,85 @@ export function paperResultsFigure(paper, sort, width) {
   return { traces, layout };
 }
 
-export function mountPaperResults(host, fallback, status) {
+function scoreWave(host, layer, selector) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const traces = host.querySelectorAll(layer);
+  for (const [column, trace] of traces.entries()) {
+    for (const [row, node] of trace.querySelectorAll(selector).entries()) {
+      for (const animation of node.getAnimations?.() ?? []) animation.cancel();
+      node.animate?.([{ opacity: .22, translate: '0 5px' }, { opacity: 1, translate: '0 0' }], {
+        duration: 280, delay: column * 14 + row * 10, easing: 'ease-out', fill: 'backwards',
+      });
+    }
+  }
+}
+
+function mountPlot(host, figure, { success, failure, wave }) {
   let current;
+  let rendered;
   let previousWidth;
+  let drawing = false;
 
   async function draw() {
-    const settings = current;
-    if (!settings || !host.clientWidth) return;
     const width = host.clientWidth;
-    previousWidth = width;
+    if (!current || !width || drawing || (current === rendered && previousWidth === width)) return;
+    const settings = current;
+    const changed = rendered && settings !== rendered;
+    drawing = true;
     try {
       const library = await loadPlotly();
-      if (settings !== current || !host.clientWidth) return;
-      const { traces, layout } = paperResultsFigure(settings.paper, settings.sort, width);
+      if (current !== settings || !host.clientWidth) return;
+      const { traces, layout } = figure(settings, width);
       await library.react(host, traces, layout, config);
-      if (settings !== current) return;
+      if (current === settings) {
+        success();
+        if (changed) scoreWave(host, ...wave);
+      }
+    } catch {
+      if (current === settings) failure();
+    } finally {
+      drawing = false;
+      rendered = settings;
+      previousWidth = width;
+      if (current !== settings || host.clientWidth !== width) void draw();
+    }
+  }
+
+  new ResizeObserver(draw).observe(host);
+  return settings => {
+    current = settings;
+    host.hidden = false;
+    void draw();
+  };
+}
+
+export function mountPaperResults(host, fallback, status) {
+  const update = mountPlot(host, ({ paper, sort }, width) => paperResultsFigure(paper, sort, width), {
+    wave: ['.barlayer .trace', '.bartext'],
+    success() {
       fallback.classList.add('sr-only');
       status.hidden = true;
-    } catch {
-      if (settings !== current) return;
+    },
+    failure() {
       host.hidden = true;
       fallback.classList.remove('sr-only');
       status.textContent = 'Showing the exact scores in a standard table.';
       status.hidden = false;
-    }
-  }
-
-  new ResizeObserver(() => {
-    if (host.clientWidth && host.clientWidth !== previousWidth) draw();
-  }).observe(host);
-
-  return (paper, sort) => {
-    current = { paper, sort };
-    host.hidden = false;
-    draw();
-  };
+    },
+  });
+  return (paper, sort) => update({ paper, sort });
 }
 
 export function leaderboardFigure(rows, metric, cases, width) {
   const compact = width < 600;
   const names = rows.map(row => row.name);
-  const values = rows.map(row => row.value / 1000);
+  const values = rows.map(row => row.value == null ? null : row.value / 1000);
   const color = rows.map(row => row.rank === 1 ? '#002d72' : '#4877a8');
   const traces = [
     {
       type: 'scatter',
       mode: 'lines',
-      x: values.flatMap(value => [0, value, null]),
+      x: values.flatMap(value => [value == null ? null : 0, value, null]),
       y: names.flatMap(name => [name, name, null]),
       line: { color: '#8ab5da', width: 2 },
       hoverinfo: 'skip',
@@ -117,13 +181,16 @@ export function leaderboardFigure(rows, metric, cases, width) {
       y: names,
       customdata: rows.map(row => [row.rank, cases]),
       marker: { color, size: compact ? 8 : 11 },
-      text: values.map(value => `${(value * 100).toFixed(1)}%`),
+      text: values.map(value => value == null ? '' : `${(value * 100).toFixed(1)}%`),
       textposition: 'middle right',
       textfont: { size: compact ? 9 : 12 },
       hovertemplate: `<b>%{y}</b><br>${metric}: %{x:.1%}<br>Rank %{customdata[0]} · n = %{customdata[1]}<extra></extra>`,
       cliponaxis: false,
     },
   ];
+  if (!cases) {
+    traces.push({ type: 'scatter', mode: 'markers', x: names.map(() => 0), y: names, opacity: 0, hoverinfo: 'skip' });
+  }
   const layout = {
     width,
     height: rows.length * (compact ? 27 : 30) + 69,
@@ -145,49 +212,24 @@ export function leaderboardFigure(rows, metric, cases, width) {
       title: { text: compact ? 'Mean score' : 'Mean language-gated score', font: { size: compact ? 11 : 13 } },
     },
     yaxis: { type: 'category', ticklabelstandoff: 9, showgrid: false, categoryorder: 'array', categoryarray: names, autorange: 'reversed', fixedrange: true },
+    annotations: cases ? [] : [{
+      text: 'No evaluated cases for these filters', x: .5, y: .5, xref: 'paper', yref: 'paper',
+      showarrow: false, font: { size: 12 }, bgcolor: '#f8f8fc', borderpad: 7,
+    }],
   };
   return { traces, layout };
 }
 
 export function mountLeaderboardPlot(host, status) {
-  let current;
-  let previousWidth;
-
-  async function draw() {
-    if (!current || !host.clientWidth) return;
-    const settings = current;
-    const width = host.clientWidth;
-    previousWidth = width;
-    try {
-      const library = await loadPlotly();
-      if (current !== settings || !host.clientWidth) return;
-      const { traces, layout } = leaderboardFigure(settings.rows, settings.metric, settings.cases, width);
-      await library.react(host, traces, layout, config);
-      if (current === settings) status.hidden = true;
-    } catch {
-      if (current === settings) {
-        status.textContent = 'The chart could not load. See the exact scores table for the results.';
-        status.hidden = false;
-      }
-    }
-  }
-
-  new ResizeObserver(() => {
-    if (host.clientWidth && host.clientWidth !== previousWidth) draw();
-  }).observe(host);
-
-  function plot(rows, metric, cases) {
-    current = { rows, metric, cases };
-    host.hidden = false;
-    draw();
-  }
-
-  plot.clear = message => {
-    current = null;
-    host.hidden = true;
-    status.textContent = message;
-    status.hidden = false;
-  };
-
-  return plot;
+  const update = mountPlot(host, ({ rows, metric, cases }, width) => leaderboardFigure(rows, metric, cases, width), {
+    wave: ['.scatterlayer .trace', '.textpoint, .point'],
+    success() {
+      status.hidden = true;
+    },
+    failure() {
+      status.textContent = 'The chart could not load. See the exact scores table for the results.';
+      status.hidden = false;
+    },
+  });
+  return (rows, metric, cases) => update({ rows, metric, cases });
 }

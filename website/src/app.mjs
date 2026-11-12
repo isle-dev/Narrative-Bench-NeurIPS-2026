@@ -1,5 +1,5 @@
 import { formatAnswer } from './answer-format.mjs';
-import { mountLeaderboardPlot, mountPaperResults, paperResultsRows } from './leaderboard.mjs';
+import { filteredResults, mountLeaderboardPlot, mountPaperResults, paperResultsRows } from './leaderboard.mjs';
 import { parseRoute, queryLanguages, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
@@ -26,6 +26,9 @@ const currentResponses = new WeakMap();
 const plotRanking = mountLeaderboardPlot($('rank-plot'), $('ranking-status'));
 const plotPaper = mountPaperResults($('paper-matrix'), $('paper-fallback'), $('paper-status'));
 let paper;
+let matrix;
+let matrixKey;
+let rankingKey;
 let paperSort = 'paper';
 let catalog;
 let map;
@@ -95,24 +98,24 @@ function sortedTopics() {
 }
 
 function renderPaperResults() {
-  options($('paper-sort'), [['paper', 'Paper order'], ...paper.columns.map((column, index) => [String(index), column.label])], paperSort);
+  options($('paper-sort'), [['paper', 'Paper order'], ...matrix.columns.map((column, index) => [String(index), column.label])], paperSort);
   const table = element('table');
-  table.append(element('caption', 'Exact scores from Table 1. Parentheses show standard errors.', 'sr-only'));
+  table.append(element('caption', `Exact scores · ${$('score-scope').textContent}`, 'sr-only'));
   const head = table.createTHead().insertRow();
-  for (const name of ['Model', ...paper.columns.map(column => `${column.label} (${column.unit})`)]) {
+  for (const name of ['Model', ...matrix.columns.map(column => `${column.label} (${column.unit})`)]) {
     const heading = element('th', name);
     heading.scope = 'col';
     head.append(heading);
   }
   const body = table.createTBody();
-  for (const model of paperResultsRows(paper, paperSort)) {
+  for (const model of paperResultsRows(matrix, paperSort)) {
     const row = body.insertRow();
     const name = element('th', model.name);
     name.scope = 'row';
     row.append(name, ...model.cells.map(cell => element('td', cell.display, 'number')));
   }
   $('paper-fallback').replaceChildren(table);
-  plotPaper(paper, paperSort);
+  plotPaper(matrix, paperSort);
 }
 
 async function renderLeaderboard(route, run) {
@@ -130,71 +133,33 @@ async function renderLeaderboard(route, run) {
   });
   history.replaceState(null, '', hash);
   $('nav-leaderboard').href = hash;
+  const key = `${topic}/${lang}`;
   const filtered = topic !== 'all' || lang !== 'all';
-  $('paper-results').hidden = filtered;
-  $('slice-scores').hidden = !filtered;
-  $('score-note').hidden = true;
-  $('table-scroll').hidden = true;
-  plotRanking.clear('Loading scores…');
-
-  let slices;
-  if (filtered) {
-    try {
-      slices = await data('rankings');
-    } catch (error) {
-      if (run === renderId) plotRanking.clear('Filtered scores could not load.');
-      throw error;
-    }
-  } else {
-    try {
-      const results = paper ?? await data('paper-results');
-      if (run !== renderId) return;
-      paper = results;
-      renderPaperResults();
-    } catch {
-      if (run !== renderId) return;
-      $('paper-status').textContent = 'The exact scores could not load. Open Table 1 to see the published results.';
-      $('paper-status').hidden = false;
-      $('slice-scores').hidden = false;
-    }
-  }
+  const [results, slices] = await Promise.all([paper ?? data('paper-results'), filtered ? data('rankings') : null]);
   if (run !== renderId) return;
+  paper = results;
+
+  if (matrixKey !== key) {
+    const scope = [
+      topics.find(item => item.id === topic)?.label ?? 'All topics',
+      catalog.languages[lang] ?? 'All query languages',
+    ];
+    const slice = slices?.[topic]?.[lang];
+    if (filtered && !slice) scope.push('No evaluated cases');
+    $('score-scope').textContent = filtered ? `Filtered · ${scope.join(' · ')}` : 'All topics · All query languages';
+    matrix = filtered ? filteredResults(paper, slice) : paper;
+    matrixKey = key;
+    renderPaperResults();
+  }
+
+  const rankKey = `${key}/${metric}`;
+  if (rankingKey === rankKey) return;
+  rankingKey = rankKey;
   const selection = sliceRanking(catalog, slices, topic, lang, metric);
-  if (!selection) {
-    plotRanking.clear('No evaluated cases for these filters.');
-    return;
-  }
-  const { rows: ranking, counts } = selection;
-  const head = element('tr');
-  for (const name of ['Rank', 'Model configuration']) {
-    const cell = element('th', name);
-    cell.scope = 'col';
-    head.append(cell);
-  }
-  for (const [id, [name, short]] of entries) {
-    const cell = element('th', short, 'number');
-    cell.scope = 'col';
-    cell.title = name;
-    if (id === metric) cell.setAttribute('aria-sort', 'descending');
-    head.append(cell);
-  }
-  $('score-head').replaceChildren(head);
-  const rows = ranking.map(model => {
-    const row = element('tr');
-    const name = element('th', model.name);
-    name.scope = 'row';
-    row.append(element('td', String(model.rank)), name);
-    for (const [id] of entries) {
-      row.append(element('td', counts[id] ? percent(model.scores[id]) : '—', id === metric ? 'number active-metric' : 'number'));
-    }
-    return row;
-  });
-  $('score-rows').replaceChildren(...rows);
-  const cases = counts[metric];
+  const ranking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
+  const cases = selection?.counts[metric] ?? 0;
   $('score-note').textContent =
     `${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model for ${TASKS[metric][0]}`;
-  $('score-note').hidden = false;
-  $('table-scroll').hidden = false;
   plotRanking(ranking, TASKS[metric][1], cases);
 }
 

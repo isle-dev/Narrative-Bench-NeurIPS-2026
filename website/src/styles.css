@@ -272,7 +272,6 @@ select {
 :is(#rank-plot, #paper-matrix) .main-svg { position: absolute; top: 0; left: 0; pointer-events: none; }
 :is(#rank-plot, #paper-matrix) .main-svg .draglayer { pointer-events: all; }
 :is(#rank-plot, #paper-matrix) .user-select-none { user-select: none; }
-.table-scroll { overflow-x: auto; border: 1px solid #c4c4dc; border-radius: 8px; margin-top: .55rem; }
 table { border-collapse: collapse; width: 100%; min-width: 38rem; text-align: left; background: #f8f8fc; }
 thead { background: var(--lavender); }
 th, td { padding: .5rem .75rem; border-bottom: 1px solid #d8d6e3; }
@@ -281,7 +280,6 @@ tbody th { font-weight: 610; }
 tbody tr:nth-child(even) { background: #f9f7fd; }
 tbody tr:last-child > * { border-bottom: 0; }
 td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
-th[aria-sort="descending"], td.active-metric { color: var(--accent); font-weight: 760; }
 .score-note { margin: 0 .25rem .65rem; }
 .score-method { margin-top: .7rem; padding: .75rem .95rem; border-radius: 11px; }
 .score-method p { max-width: 80ch; margin-top: .4rem; font-size: .87rem; }
