@@ -148,6 +148,24 @@ def copy_browser_libraries(site):
     shutil.copyfile(HERE / "node_modules/internmap/LICENSE", vendor / "internmap-LICENSE.txt")
 
 
+def version_browser_assets(site):
+    """Keep entry points, module imports, and their fetched data on the same release."""
+    modules = sorted(site.glob("*.mjs"))
+    assets = [
+        *modules, site / "styles.css",
+        *sorted((site / "vendor").glob("*.js")), *sorted((site / "vendor").glob("*.mjs")),
+        *sorted((site / "data").glob("*.json")),
+    ]
+    version = text_sha("".join(file_sha(path) for path in assets))[:16]
+    reference = re.compile(r"""(?P<quote>['"])(?P<path>\./(?:vendor/)?[\w.-]+\.(?:m?js|css))(?P=quote)""")
+    for path in [site / "index.html", *modules]:
+        original = path.read_text(encoding="utf-8")
+        updated = reference.sub(rf"\g<quote>\g<path>?v={version}\g<quote>", original)
+        if updated != original:
+            path.write_text(updated, encoding="utf-8")
+    return version
+
+
 def source_omission(context, answer):
     """Count source languages with no valid in-context citation, regardless of answer language."""
     cited = set(re.findall(r"\bD\d{4}\b", answer or ""))
@@ -369,6 +387,7 @@ def build_site(release, output):
             "counts": {"queries": len(queries), "cases": len(cases), "responses": len(summary_rows), "tasks": counts},
             "revision": LOCK["revision"],
         })
+        version_browser_assets(site)
         (site / ".nojekyll").touch()
         site.rename(output)
     print(f"Built {len(topics)} topics, {len(queries)} queries, {len(cases)} cases and {len(summary_rows)} verified responses.")

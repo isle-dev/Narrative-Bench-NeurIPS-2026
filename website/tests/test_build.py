@@ -135,3 +135,25 @@ class BuildTests(unittest.TestCase):
             links = re.findall(r'<a href="([^"]+)">([^<]+)', section)
             self.assertEqual([(name.strip(), url) for url, name in links], authors)
         self.assertIn('href="#authors"', page.split("</header>", 1)[0])
+
+    def test_browser_asset_versions_change_with_the_score_data(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            versions = []
+            for i in (1, 2):
+                site = root / str(i)
+                (site / "data").mkdir(parents=True)
+                (site / "vendor").mkdir()
+                (site / "index.html").write_text('<link href="./styles.css"><script src="./app.mjs"></script>')
+                (site / "app.mjs").write_text("import './leaderboard.mjs'; import('./vendor/plotly.js');")
+                (site / "leaderboard.mjs").write_text("export const version = 1;")
+                (site / "vendor/plotly.js").write_text("const plotly = {};")
+                (site / "styles.css").write_text("")
+                (site / "data/rankings.json").write_text(str(i))
+                version = build.version_browser_assets(site)
+                versions.append(version)
+                self.assertIn(f'./app.mjs?v={version}', (site / "index.html").read_text())
+                self.assertIn(f'./styles.css?v={version}', (site / "index.html").read_text())
+                self.assertIn(f'./leaderboard.mjs?v={version}', (site / "app.mjs").read_text())
+                self.assertIn(f'./vendor/plotly.js?v={version}', (site / "app.mjs").read_text())
+            self.assertNotEqual(*versions)
