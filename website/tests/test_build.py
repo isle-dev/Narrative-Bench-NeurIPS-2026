@@ -53,3 +53,33 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(slices["gaza"]["all"]["scores"]["a"]["NI"], 0.5)
         self.assertEqual(slices["all"]["ar"]["counts"], {"NI": 2, "DP": 1})
         self.assertNotIn("en", slices["tigray"])
+
+    def test_map_query_index_records_dataset_and_evaluated_languages(self):
+        rows = {
+            "gaza": [
+                {"id": "q1", "translations": {"en": "One", "ar": "واحد", "fr": "Un"},
+                 "cases": {"ar": {"DP": "c1"}, "fr": {"DP": "c2"}}},
+                {"id": "q2", "translations": {"en": "Two"}, "cases": {}},
+                {"id": "q3", "translations": {"fr": "Trois"}, "cases": {"fr": {"DP": "c3"}}},
+            ]
+        }
+        self.assertEqual(build.map_query_index(rows), {
+            "gaza": [
+                {"id": "q1", "text": "One", "textLang": "en", "languages": ["ar", "fr"], "available": ["ar", "en", "fr"]},
+                {"id": "q2", "text": "Two", "textLang": "en", "languages": [], "available": ["en"]},
+                {"id": "q3", "text": "Trois", "textLang": "fr", "languages": ["fr"], "available": ["fr"]},
+            ]
+        })
+
+    def test_front_page_includes_the_framework_and_arxiv_citation(self):
+        source = build.HERE / "src"
+        page = (source / "index.html").read_text()
+        for label in ("Include narratives", "Exclude narratives", "Find missing narratives",
+                      "Present diverse narratives", "Preserve coverage under confirmatory queries",
+                      "Provide comparable access across languages", "Filter bubbles", "Echo chambers",
+                      "Linguistic disparities"):
+            self.assertIn(label, page)
+        self.assertIn('<section class="score-method" aria-labelledby="scores-title">', page)
+        self.assertIn('<details class="score-method" open>', page)
+        self.assertIn('<details class="case-details" open>', page)
+        self.assertIn('eprint={2611.12750}', (source / 'narrativebench.bib').read_text())

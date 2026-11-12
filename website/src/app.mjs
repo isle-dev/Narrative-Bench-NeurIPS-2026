@@ -1,6 +1,6 @@
 import { formatAnswer } from './answer-format.mjs';
 import { mountLeaderboardPlot } from './leaderboard.mjs';
-import { evaluatedLanguages, parseRoute, resolveSelection, sliceRanking } from './state.mjs';
+import { parseRoute, queryLanguages, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
   NI: ['Narrative Inclusion', 'NI F1'],
@@ -27,6 +27,7 @@ const plotRanking = mountLeaderboardPlot($('rank-plot'), $('ranking-status'));
 let catalog;
 let map;
 let mapSelection;
+let activeQuery;
 let renderId = 0;
 let lastPage;
 let queryListKey;
@@ -158,10 +159,10 @@ async function renderLeaderboard(route, run) {
   plotRanking(ranking, TASKS[metric][1], cases);
 }
 
-function renderQueries(topic, selection) {
+function renderQueries(topic, selection, scope) {
   const { lang, query, choices } = selection;
   const list = $('queries');
-  const key = `${topic.id}/${lang}`;
+  const key = `${topic.id}/${lang}/${scope}`;
   if (queryListKey !== key) {
     const buttons = choices.map(item => {
       const button = element('button');
@@ -170,7 +171,9 @@ function renderQueries(topic, selection) {
       const text = element('span', item.translations[lang]);
       text.dir = 'auto';
       text.lang = lang;
-      button.append(text, element('small', item.type === 'neutral' ? 'Neutral' : 'Confirmatory'));
+      const framing = item.type === 'neutral' ? 'Neutral' : 'Confirmatory';
+      const availability = item.cases[lang] ? 'Recorded answers' : 'Dataset only';
+      button.append(text, element('small', scope === 'dataset' ? `${framing} · ${availability}` : framing));
       button.addEventListener('click', () => changeRoute({ topic: topic.id, lang, query: item.id }));
       return button;
     });
@@ -187,7 +190,7 @@ function renderQueries(topic, selection) {
   }
   $('query-count').textContent = choices.length ? `${number.format(choices.length)} ${choices.length === 1 ? 'query' : 'queries'}` : '';
   $('query-status').hidden = Boolean(choices.length);
-  $('query-status').textContent = 'No evaluated queries for this topic.';
+  $('query-status').textContent = 'No questions are available for this selection.';
 }
 
 function setAnswerStatus(message, retry) {
@@ -200,6 +203,21 @@ function setAnswerStatus(message, retry) {
     button.addEventListener('click', render);
     status.append(' ', button);
   }
+}
+
+function showDatasetAnswerStatus(query, lang) {
+  if (!query) {
+    setAnswerStatus('');
+    return;
+  }
+  setAnswerStatus(`No recorded answers for this query in ${catalog.languages[lang]}.`);
+  const evaluated = queryLanguages([query]);
+  const alternate = evaluated.has('en') ? 'en' : evaluated.values().next().value;
+  if (!alternate) return;
+  const button = element('button', `View answers in ${catalog.languages[alternate]}`, 'retry-answer');
+  button.type = 'button';
+  button.addEventListener('click', () => changeRoute({ lang: alternate }));
+  $('answer-status').append(' ', button);
 }
 
 function renderAnswer(container, response, lang) {
@@ -226,9 +244,7 @@ function renderAnswer(container, response, lang) {
 }
 
 function renderCaseDetails(item, sources) {
-  const details = $('case-details');
   if (loadedCase === item.id) return;
-  details.querySelector('details').open = false;
   const context = $('case-context');
   context.replaceChildren();
   for (const [label, value] of [
@@ -266,13 +282,17 @@ async function renderExplorer(route, run) {
     ?? topics.find(item => item.id === DEFAULT_TOPIC) ?? topics[0];
   options($('topic'), topics.map(item => [item.id, item.label]), topic.id);
   if ($('topic-title').textContent !== topic.label) $('topic-title').textContent = topic.label;
-  $('map-note').textContent = topic.point
-    ? 'Drag to rotate. Queries are grouped around their topic.'
-    : 'This topic spans regions. Explore its queries in the topic panel.';
-  if (mapSelection?.topic !== topic.id) {
-    mapSelection = { topic: topic.id, queries: [] };
-    map?.setSelection(mapSelection);
+  const scope = route.scope === 'dataset' ? 'dataset' : 'benchmark';
+  const mode = ['conflicts', 'queries'].includes(route.pins) ? route.pins : 'both';
+  const mapLang = Object.hasOwn(catalog.languages, route.mapLang) ? route.mapLang : '';
+  for (const button of document.querySelectorAll('[data-scope]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.scope === scope));
   }
+  for (const button of document.querySelectorAll('[data-pins]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.pins === mode));
+  }
+  options($('map-language'), [['', 'All languages'], ...sortedLanguages()], mapLang);
+  $('map-language').disabled = mode === 'conflicts';
 
   if (!queryListKey?.startsWith(`${topic.id}/`)) {
     $('language').disabled = true;
@@ -290,15 +310,14 @@ async function renderExplorer(route, run) {
   if (renderId !== run) return;
   const selection = resolveSelection(questions, route);
   const { lang, query, task, caseId } = selection;
-  const availableLanguages = evaluatedLanguages(questions);
+  activeQuery = query;
+  const availableLanguages = queryLanguages(questions, scope);
   const languages = sortedLanguages().filter(([id]) => availableLanguages.has(id));
   options($('language'), languages, lang);
-  renderQueries(topic, selection);
-  if (mapSelection.lang !== lang || mapSelection.queryId !== query?.id) {
-    mapSelection = {
-      topic: topic.id, lang, queryId: query?.id,
-      queries: selection.choices.map(item => ({ id: item.id, text: item.translations[lang] })),
-    };
+  renderQueries(topic, selection, scope);
+  const nextMapSelection = { topic: topic.id, lang, queryId: query?.id, mode, scope, mapLang };
+  if (Object.keys(nextMapSelection).some(key => mapSelection?.[key] !== nextMapSelection[key])) {
+    mapSelection = nextMapSelection;
     map?.setSelection(mapSelection);
   }
   $('answer-question').textContent = query?.translations[lang] ?? '';
@@ -312,7 +331,10 @@ async function renderExplorer(route, run) {
   const modelIds = new Set(catalog.models.map(model => model.id));
   const left = modelIds.has(route.left) ? route.left : DEFAULT_MODELS[0];
   const right = modelIds.has(route.right) ? route.right : DEFAULT_MODELS[1];
-  const resolved = { page: 'explorer', topic: topic.id, lang, query: query?.id, task, left, right };
+  const resolved = {
+    page: 'explorer', topic: topic.id, lang, query: query?.id, task, left, right,
+    pins: mode === 'both' ? undefined : mode, scope: scope === 'benchmark' ? undefined : scope, mapLang,
+  };
   const hash = hashFor(resolved);
   history.replaceState(null, '', hash);
   $('nav-explorer').href = hash;
@@ -322,7 +344,10 @@ async function renderExplorer(route, run) {
     $('case-details').hidden = true;
     setAnswerStatus(caseId ? 'Loading recorded answers…' : '');
   }
-  if (!caseId) return;
+  if (!caseId) {
+    showDatasetAnswerStatus(query, lang);
+    return;
+  }
   let item;
   let sources;
   try {
@@ -379,20 +404,60 @@ document.querySelector('.skip-link').addEventListener('click', event => {
 $('topic').addEventListener('change', event => selectTopic(event.target.value));
 for (const [id, parameter] of [
   ['language', 'lang'], ['task', 'task'], ['left-model', 'left'], ['right-model', 'right'], ['metric', 'metric'],
-  ['rank-topic', 'topic'], ['rank-language', 'lang'],
+  ['rank-topic', 'topic'], ['rank-language', 'lang'], ['map-language', 'mapLang'],
 ]) {
-  $(id).addEventListener('change', event => changeRoute({ [parameter]: event.target.value }));
+  $(id).addEventListener('change', event => changeRoute({ [parameter]: event.target.value || undefined }));
 }
+for (const button of document.querySelectorAll('[data-pins]')) {
+  button.addEventListener('click', () => changeRoute({ pins: button.dataset.pins === 'both' ? undefined : button.dataset.pins }));
+}
+for (const button of document.querySelectorAll('[data-scope]')) {
+  button.addEventListener('click', () => {
+    const scope = button.dataset.scope;
+    const route = parseRoute(location.hash);
+    const evaluated = activeQuery ? queryLanguages([activeQuery]) : new Set();
+    const alternate = evaluated.has('en') ? 'en' : evaluated.values().next().value;
+    const lang = scope === 'benchmark' && !evaluated.has(route.lang) ? alternate ?? route.lang : route.lang;
+    changeRoute({ scope: scope === 'dataset' ? scope : undefined, lang });
+  });
+}
+const bibtex = $('citation-text');
+const copyBibtex = $('copy-bibtex');
+fetch(new URL('./narrativebench.bib', import.meta.url)).then(response => {
+  if (!response.ok) throw new Error('BibTeX could not load');
+  return response.text();
+}).then(text => {
+  bibtex.textContent = text.trimEnd();
+  copyBibtex.disabled = false;
+}).catch(() => {
+  bibtex.textContent = 'The BibTeX preview could not load.';
+});
+copyBibtex.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(bibtex.textContent);
+    $('citation-status').textContent = 'BibTeX copied.';
+  } catch {
+    $('citation-status').textContent = 'Select the citation text to copy it, or download the .bib file.';
+  }
+});
 $('retry').addEventListener('click', render);
 window.addEventListener('hashchange', render);
-await render();
+void render();
 try {
-  const [{ mountGlobe }, geometry, index] = await Promise.all([import('./globe.mjs'), data('map'), data('catalog')]);
-  map = mountGlobe(geometry, index.topics, id => selectTopic(id, true), id => {
-    changeRoute({ query: id });
-    if (matchMedia('(max-width: 850px)').matches) $('query-title').scrollIntoView({ block: 'start' });
+  const [{ mountGlobe }, geometry, index, queryIndex] = await Promise.all([
+    import('./globe.mjs'), data('map'), data('catalog'), data('map-queries'),
+  ]);
+  map = mountGlobe(geometry, { topics: index.topics, languages: index.languages, queryIndex }, {
+    selectTopic: id => selectTopic(id, true),
+    selectQuery: (topic, query, lang) => {
+      changeRoute({ topic, query, lang });
+      if (matchMedia('(max-width: 850px)').matches) $('query-title').scrollIntoView({ block: 'start' });
+    },
   });
   if (mapSelection) map.setSelection(mapSelection);
+  $('map').classList.add('map-ready');
 } catch {
   $('map-error').hidden = false;
+} finally {
+  $('map-loading').hidden = true;
 }

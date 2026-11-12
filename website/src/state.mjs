@@ -1,5 +1,5 @@
 const DEFAULT_TASK = 'DP';
-const EXPLORER_PARAMS = ['topic', 'lang', 'query', 'task', 'left', 'right'];
+const EXPLORER_PARAMS = ['topic', 'lang', 'query', 'task', 'left', 'right', 'pins', 'scope', 'mapLang'];
 
 export function parseRoute(hash) {
   const [name, search] = hash.slice(1).split('?');
@@ -12,22 +12,22 @@ export function parseRoute(hash) {
   return route;
 }
 
-function hasEvaluation(query, lang) {
-  return Boolean(query.translations[lang] && Object.values(query.cases[lang] ?? {}).some(Boolean));
+function inScope(query, lang, scope) {
+  return Boolean(query.translations[lang] && (scope === 'dataset' || Object.values(query.cases[lang] ?? {}).some(Boolean)));
 }
 
-export function queryChoices(queries, lang) {
-  return queries.filter(query => hasEvaluation(query, lang));
+export function queryChoices(queries, lang, scope) {
+  return queries.filter(query => inScope(query, lang, scope));
 }
 
-export function evaluatedLanguages(queries) {
-  return new Set(queries.flatMap(query => Object.keys(query.cases).filter(lang => hasEvaluation(query, lang))));
+export function queryLanguages(queries, scope) {
+  return new Set(queries.flatMap(query => Object.keys(query.translations).filter(lang => inScope(query, lang, scope))));
 }
 
 export function resolveSelection(queries, route) {
-  const languages = evaluatedLanguages(queries);
+  const languages = queryLanguages(queries, route.scope);
   const lang = languages.has(route.lang) ? route.lang : languages.has('en') ? 'en' : languages.values().next().value;
-  const choices = queryChoices(queries, lang);
+  const choices = queryChoices(queries, lang, route.scope);
   const query = choices.find(item => item.id === route.query) ?? choices[0];
   const cases = query?.cases[lang] ?? {};
   const task = Object.hasOwn(cases, route.task) ? route.task : Object.hasOwn(cases, DEFAULT_TASK) ? DEFAULT_TASK : Object.keys(cases)[0];

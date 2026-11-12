@@ -31,9 +31,72 @@
     </div>
     <noscript><p>The map and leaderboard require JavaScript. <a href="https://huggingface.co/datasets/jhu-clsp/narrative-bench">Open the dataset.</a></p></noscript>
     <section id="explorer">
-      <div class="intro">
-        <h1>Explore the benchmark</h1>
-        <p>Browse contested topics and compare how language models answered.</p>
+      <header class="research-hero">
+        <h1>The Narrative Gap</h1>
+        <p>Can LLMs help us navigate diverse narratives across languages?</p>
+      </header>
+      <section class="capability-overview" aria-label="Information-seeking capabilities and risks">
+        <section class="capability-group foundation" aria-labelledby="foundation-title">
+          <h2 id="foundation-title">Foundational capabilities</h2>
+          <ul>
+            <li>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 9-5 9 5-9 5-9-5Zm0 5 9 5 9-5M3 18l9 5 9-5"/><path d="M12 6v4m-2-2h4"/></svg>
+              <span>Include narratives</span>
+            </li>
+            <li>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 9-5 9 5-9 5-9-5Zm0 5 9 5 9-5"/><path d="m3 18 9 5 9-5" stroke-dasharray="2 2"/><path d="M10 8h4"/></svg>
+              <span>Exclude narratives</span>
+            </li>
+            <li>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5M8 10.5h5m-2.5-2.5v5"/></svg>
+              <span>Find missing narratives</span>
+            </li>
+          </ul>
+        </section>
+        <section class="capability-group higher" aria-labelledby="higher-title">
+          <h2 id="higher-title">Higher-level capabilities</h2>
+          <ul>
+            <li>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="5" height="14" rx="1.2"/><rect x="9.5" y="3" width="5" height="18" rx="1.2"/><rect x="16" y="7" width="5" height="10" rx="1.2"/></svg>
+              <span>Present diverse narratives</span>
+            </li>
+            <li>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v5c0 4.4 3.5 7.8 8 10 4.5-2.2 8-5.6 8-10V6l-8-3Z"/><path d="m8.5 12 2.3 2.3 4.9-4.9"/></svg>
+              <span>Preserve coverage under confirmatory queries</span>
+            </li>
+            <li>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M5 7h14M5 17h14"/><ellipse cx="12" cy="12" rx="3.5" ry="9"/></svg>
+              <span>Provide comparable access across languages</span>
+            </li>
+          </ul>
+        </section>
+        <section class="capability-group risks" aria-labelledby="risks-title">
+          <h2 id="risks-title">Information risks</h2>
+          <ul>
+            <li>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4Z"/><path d="M8 7h8"/></svg>
+              <span>Filter bubbles</span>
+            </li>
+            <li>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.4"/><circle cx="5" cy="17.5" r="2.4"/><circle cx="19" cy="17.5" r="2.4"/><path d="m10.8 7-4.6 8m7-8 4.6 8M7.4 17.5h9.2"/></svg>
+              <span>Echo chambers</span>
+            </li>
+            <li>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 18.5 7 6l4.5 12.5m-7.4-4.2H10m3-5.5h8.7m-4.2-2.4v2.4m2.7 0c-.6 4-2.9 7-6.7 9.3m.5-6.6c1.4 3 3.6 5.3 7.4 7"/></svg>
+              <span>Linguistic disparities</span>
+            </li>
+          </ul>
+        </section>
+      </section>
+      <div class="intro explore-intro">
+        <h2>Explore the benchmark</h2>
+        <div class="coverage-control">
+          <span id="coverage-label">Query coverage</span>
+          <div class="segmented" role="group" aria-labelledby="coverage-label">
+            <button type="button" data-scope="benchmark" aria-pressed="true">Benchmark</button>
+            <button type="button" data-scope="dataset" aria-pressed="false">Entire dataset</button>
+          </div>
+        </div>
       </div>
       <div class="workspace">
         <section class="atlas" aria-labelledby="map-title">
@@ -44,20 +107,34 @@
               <select id="topic" disabled><option>Loading topics…</option></select>
             </div>
           </header>
+          <div class="map-toolbar">
+            <div class="segmented" role="group" aria-label="Globe pins">
+              <button type="button" data-pins="conflicts" aria-pressed="false">Conflicts</button>
+              <button type="button" data-pins="queries" aria-pressed="false">Queries</button>
+              <button type="button" data-pins="both" aria-pressed="true">Both</button>
+            </div>
+            <div class="map-language-field">
+              <label for="map-language">Map language</label>
+              <select id="map-language" disabled><option>All languages</option></select>
+            </div>
+          </div>
           <div id="map" class="map" tabindex="0" role="region" aria-label="Map of benchmark topics" aria-describedby="map-instructions">
             <canvas id="world" aria-hidden="true"></canvas>
+            <div class="globe-orbit" aria-hidden="true"><i></i><i></i></div>
             <div id="markers" class="markers"></div>
-            <div id="cluster" class="cluster-menu" role="group" aria-label="Nearby topics" hidden></div>
+            <div id="cluster" class="cluster-menu" role="group" aria-labelledby="cluster-title" hidden></div>
+            <p id="map-loading" class="map-error" role="status">Loading globe…</p>
             <p id="map-error" class="map-error" hidden>The map is unavailable. Use the topic menu to browse queries.</p>
-            <span id="map-instructions" class="sr-only">Drag or use the arrow keys to rotate the globe. Circle pins open topics. Diamond pins open evaluated queries.</span>
+            <span id="map-instructions" class="sr-only">Drag or use the arrow keys to rotate the globe. Circle pins open topics. Diamond pins list the queries grouped at a topic.</span>
           </div>
           <footer class="atlas-footer">
             <div>
               <div class="map-legend" aria-label="Map legend">
-                <span><i class="legend-topic" aria-hidden="true"></i> Topic</span>
-                <span><i class="legend-query" aria-hidden="true"></i> Evaluated query</span>
+                <span id="legend-topics"><i class="legend-topic" aria-hidden="true"></i> Topic</span>
+                <span id="legend-queries"><i class="legend-query" aria-hidden="true"></i> Query group</span>
               </div>
-              <p id="map-note">Drag to rotate. Queries are grouped around their topic.</p>
+              <p id="map-note" role="status">Drag to rotate the globe.</p>
+              <button type="button" id="cross-region-queries" aria-expanded="false" aria-controls="cluster" hidden></button>
               <a class="map-credit" href="https://www.naturalearthdata.com/">Natural Earth</a>
             </div>
             <div class="zoom" role="group" aria-label="Globe controls">
@@ -91,13 +168,6 @@
               </div>
             </div>
             <p id="answer-question" class="answer-question" dir="auto" hidden></p>
-            <div id="case-details" hidden>
-              <details class="case-details">
-                <summary>Evaluation prompt and sources</summary>
-                <div id="case-context"></div>
-                <div id="case-sources"></div>
-              </details>
-            </div>
             <p id="answer-status" class="muted" role="status">Loading answers…</p>
             <div id="answer-grid" class="answer-grid" hidden>
               <article class="answer">
@@ -114,6 +184,13 @@
                 </div>
                 <div id="right-answer" class="answer-content" role="region" aria-label="Model B answer" tabindex="0"></div>
               </article>
+            </div>
+            <div id="case-details" hidden>
+              <details class="case-details" open>
+                <summary>Evaluation prompt and sources</summary>
+                <div id="case-context"></div>
+                <div id="case-sources"></div>
+              </details>
             </div>
           </section>
         </section>
@@ -145,8 +222,8 @@
         <p id="ranking-status" class="muted" role="status">Loading scores…</p>
         <div id="rank-plot" role="img" aria-label="Model ranking chart. All values are available in the Exact scores table."></div>
       </div>
-      <details class="score-method">
-        <summary>Exact scores</summary>
+      <section class="score-method" aria-labelledby="scores-title">
+        <h2 id="scores-title">Exact scores</h2>
         <div id="table-scroll" class="table-scroll" tabindex="0" role="region" aria-label="Model scores" hidden>
           <table>
             <caption class="sr-only">Mean language-gated score by task, in percent</caption>
@@ -154,13 +231,24 @@
             <tbody id="score-rows"></tbody>
           </table>
         </div>
-      </details>
-      <details class="score-method">
+      </section>
+      <details class="score-method" open>
         <summary>How the scores work</summary>
         <p>Narrative Inclusion and Narrative Exclusion use narrative F1. Missing Narrative Identification, Baseline Prompt, and Diverse Prompt use narrative recall. The benchmark uses cited document IDs to score coverage of the target narratives. Answers classified as different-language or mixed-language receive zero. Higher scores indicate stronger performance on the selected task. Displayed ties share a rank.</p>
         <p>The unfiltered scores match <a href="https://arxiv.org/pdf/2611.12750v1#page=7">Table 1 in the paper</a>. Topic and language filters recalculate the same metrics over the selected evaluation cases.</p>
         <p><a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026/blob/main/EVALUATION.md">Evaluation documentation</a></p>
       </details>
+    </section>
+    <section class="citation-panel" aria-labelledby="citation-title">
+      <header class="citation-heading">
+        <h2 id="citation-title">Cite NarrativeBench</h2>
+        <div class="citation-actions">
+          <button id="copy-bibtex" type="button" disabled>Copy BibTeX</button>
+          <a href="./narrativebench.bib" download>Download .bib</a>
+        </div>
+      </header>
+      <pre id="citation-text" tabindex="0">Loading BibTeX…</pre>
+      <p id="citation-status" class="muted" role="status"></p>
     </section>
   </main>
   <footer class="shell footer">
