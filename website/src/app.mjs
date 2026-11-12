@@ -1,6 +1,6 @@
 import { formatAnswer } from './answer-format.mjs';
-import { filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsRows, sourceOmissionRows } from './leaderboard.mjs';
-import { parseRoute, queryLanguages, queryScrollState, resolveSelection, sliceRanking } from './state.mjs';
+import { filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsPreview, paperResultsRows, paperSortColumn, sourceOmissionRows } from './leaderboard.mjs';
+import { parseRoute, queryLanguages, queryScrollState, rankedRows, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
   NI: 'Narrative inclusion',
@@ -102,6 +102,8 @@ function sortedTopics() {
 }
 
 function renderPaperResults() {
+  const metric = $('metric').value;
+  const activeColumn = paperSortColumn(matrix, paperSort, metric);
   options($('paper-sort'), [
     ['ranking', 'Follow Rank by'],
     ['paper', 'Paper order'],
@@ -110,9 +112,13 @@ function renderPaperResults() {
   const table = element('table');
   table.append(element('caption', `Exact scores · ${$('score-scope').textContent}`, 'sr-only'));
   const head = table.createTHead().insertRow();
-  for (const name of ['Model', ...matrix.columns.map(column => `${column.description} (${column.unit})`)]) {
-    const heading = element('th', name);
+  const modelHeading = element('th', 'Model');
+  modelHeading.scope = 'col';
+  head.append(modelHeading);
+  for (const [index, column] of matrix.columns.entries()) {
+    const heading = element('th', `${column.description} (${column.unit})`);
     heading.scope = 'col';
+    if (index === activeColumn) heading.setAttribute('aria-sort', column.task ? 'descending' : 'ascending');
     head.append(heading);
   }
   const body = table.createTBody();
@@ -123,7 +129,29 @@ function renderPaperResults() {
     row.append(name, ...model.cells.map(cell => element('td', cell.display, 'number')));
   }
   $('paper-fallback').replaceChildren(table);
-  plotPaper(matrix, paperSort, ranking);
+  plotPaper(matrix, paperSort, ranking, metric);
+}
+
+async function renderResultsPreview() {
+  if (!$('results-preview-table').hidden) return;
+  try {
+    paper ??= await data('paper-results');
+  } catch {
+    return;
+  }
+  const preview = paperResultsPreview(paper, rankedRows(catalog.models, 'DP'));
+  $('results-preview-summary').textContent = preview.improved === preview.total
+    ? `All ${preview.total} model configurations had higher narrative recall on the benchmark.`
+    : `${preview.improved} of ${preview.total} model configurations had higher narrative recall with the diverse prompt.`;
+  const body = $('results-preview-rows');
+  body.replaceChildren(...preview.rows.map(({ name, baseline, diverse }) => {
+    const row = element('tr');
+    const heading = element('th', name);
+    heading.scope = 'row';
+    row.append(heading, element('td', `${baseline.toFixed(1)}%`, 'number'), element('td', `${diverse.toFixed(1)}%`, 'number'));
+    return row;
+  }));
+  $('results-preview-table').hidden = false;
 }
 
 function renderSourceOmissions(data, pooled, label) {
@@ -528,8 +556,10 @@ async function render() {
   try {
     catalog ??= await data('catalog');
     if (run !== renderId) return;
-    if (explorer) await renderExplorer(route, run);
-    else await renderLeaderboard(route, run);
+    if (explorer) {
+      void renderResultsPreview();
+      await renderExplorer(route, run);
+    } else await renderLeaderboard(route, run);
   } catch {
     if (run === renderId) $('app-error').hidden = false;
   }
@@ -546,6 +576,11 @@ function scrollToSection(id) {
 }
 
 $('open-map').addEventListener('click', () => scrollToSection('globe-section'));
+$('results-preview-link').addEventListener('click', () => {
+  if (paperSort === 'ranking') return;
+  paperSort = 'ranking';
+  matrixKey = undefined;
+});
 $('metric-guide-link').addEventListener('click', event => {
   event.preventDefault();
   $('score-method').open = true;
