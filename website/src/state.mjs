@@ -5,7 +5,7 @@ export function parseRoute(hash) {
   const [name, search] = hash.slice(1).split('?');
   const params = new URLSearchParams(search);
   const route = { page: name === 'leaderboard' ? 'leaderboard' : 'explorer' };
-  const keys = name === 'leaderboard' ? ['metric', 'topic', 'lang'] : name === 'explore' ? EXPLORER_PARAMS : [];
+  const keys = name === 'leaderboard' ? ['metric', 'topic', 'lang', 'sourceModel'] : name === 'explore' ? EXPLORER_PARAMS : [];
   for (const key of keys) {
     if (params.has(key)) route[key] = params.get(key);
   }

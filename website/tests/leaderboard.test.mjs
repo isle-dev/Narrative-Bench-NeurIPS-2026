@@ -80,3 +80,12 @@ test('source-language omission rates use available source-language opportunities
   assert.deepEqual(traces[1].x, [2 / 3, .5, 0]);
   assert.deepEqual(traces[1].customdata[0], [2, 3]);
 });
+
+test('switching models preserves the language order for the selected scope', async () => {
+  const { sourceOmissionRows } = await import('../src/leaderboard.mjs');
+  const pooled = { DP: { English: [3, 10], Arabic: [6, 10] } };
+  const model = { DP: { English: [3, 5], Arabic: [1, 5] } };
+  const rows = sourceOmissionRows(model, pooled);
+  assert.deepEqual(rows.map(row => row.language), ['Arabic', 'English']);
+  assert.deepEqual(rows.map(row => row.DP), [[1, 5], [3, 5]]);
+});

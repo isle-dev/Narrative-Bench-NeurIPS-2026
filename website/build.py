@@ -155,6 +155,7 @@ def version_browser_assets(site):
         *modules, site / "styles.css",
         *sorted((site / "vendor").glob("*.js")), *sorted((site / "vendor").glob("*.mjs")),
         *sorted((site / "data").glob("*.json")),
+        *sorted((site / "data/source-omissions").glob("*.json")),
     ]
     version = text_sha("".join(file_sha(path) for path in assets))[:16]
     reference = re.compile(r"""(?P<quote>['"])(?P<path>\./(?:vendor/)?[\w.-]+\.(?:m?js|css))(?P=quote)""")
@@ -174,20 +175,24 @@ def source_omission(context, answer):
     return available, available - covered
 
 
+def source_omission_counts(available, omitted):
+    return {lang: [omitted[lang], total] for lang, total in sorted(available.items())}
+
+
 def ranking_slice(rows, cases, documents):
     summary = summarize(rows, cases, documents)["models"]
-    omitted, opportunities = Counter(), Counter()
+    omitted, opportunities = defaultdict(Counter), defaultdict(Counter)
     by_source_omitted = defaultdict(Counter)
     by_source_available = defaultdict(Counter)
     for row in rows:
         if row["task"] in {"BP", "DP"}:
             key = row["model_id"], row["task"]
-            omitted[key] += len(row["omitted_languages"])
-            opportunities[key] += len(row["source_languages"])
+            omitted[key].update(row["omitted_languages"])
+            opportunities[key].update(row["source_languages"])
             by_source_omitted[row["task"]].update(row["omitted_languages"])
             by_source_available[row["task"]].update(row["source_languages"])
 
-    counts, scores, diagnostics = {}, {}, {}
+    counts, scores, diagnostics, by_model = {}, {}, {}, {}
     for model, result in summary.items():
         tasks = result["tasks"]
         model_counts = {task: stats["cases"] for task, stats in tasks.items()}
@@ -201,16 +206,19 @@ def ranking_slice(rows, cases, documents):
             ("confirmatory_absolute_gap_pp", "query_language_gap_pp", "target_language_gap_pp")
         }
         diagnostics[model]["language_violations"] = result["language_violations"]
+        by_model[model] = {}
         for task in ("BP", "DP"):
             key = model, task
-            diagnostics[model][f"{task.lower()}_omission_pct"] = (
-                100 * omitted[key] / opportunities[key] if opportunities[key] else None
-            )
+            available = opportunities[key].total()
+            diagnostics[model][f"{task.lower()}_omission_pct"] = 100 * omitted[key].total() / available if available else None
+            by_model[model][task] = source_omission_counts(opportunities[key], omitted[key])
     source_omissions = {
-        task: {lang: [by_source_omitted[task][lang], total] for lang, total in sorted(by_source_available[task].items())}
-        for task in ("BP", "DP")
+        task: source_omission_counts(by_source_available[task], by_source_omitted[task]) for task in ("BP", "DP")
     }
-    return {"counts": counts, "scores": scores, "diagnostics": diagnostics, "sourceOmissions": source_omissions}
+    return {
+        "counts": counts, "scores": scores, "diagnostics": diagnostics,
+        "sourceOmissions": source_omissions, "sourceOmissionsByModel": by_model,
+    }
 
 
 def pooled_score(slice_, model):
@@ -240,6 +248,21 @@ def ranking_slices(rows, cases, documents):
                     metrics["query_language_gap_pp"] = 100 * abs(pooled_score(slice_, model) - pooled_score(english, model))
         slices[topic] = by_language
     return slices
+
+
+def write_model_omissions(data, rankings):
+    by_model = defaultdict(dict)
+    for topic, slices in rankings.items():
+        for query_language, slice_ in slices.items():
+            for model, counts in slice_.pop("sourceOmissionsByModel").items():
+                by_model[model].setdefault(topic, {})[query_language] = counts
+
+    folder = data / "source-omissions"
+    folder.mkdir()
+    for model, counts in by_model.items():
+        if not re.fullmatch(r"[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*", model):
+            raise ValueError(f"Invalid model identifier: {model}")
+        write_json(folder / f"{model}.json", counts)
 
 
 def map_query_index(topic_queries):
@@ -332,7 +355,7 @@ def build_site(release, output):
         raise ValueError("Each evaluation case must have all model configurations")
 
     rankings = ranking_slices(summary_rows, cases, documents)
-    aggregate = rankings["all"].pop("all")
+    aggregate = rankings["all"]["all"]
     counts = aggregate["counts"]
     models_view = [
         {"id": model, "name": name, "scores": aggregate["scores"][model]} for model, name in models.items()
@@ -390,6 +413,8 @@ def build_site(release, output):
             }
             for doc_id, row in documents.items()
         })
+        write_model_omissions(data, rankings)
+        del rankings["all"]["all"]
         write_json(data / "rankings.json", rankings)
         write_json(data / "paper-results.json", paper)
         write_json(data / "source-omissions.json", aggregate["sourceOmissions"])

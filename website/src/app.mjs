@@ -31,6 +31,7 @@ let paper;
 let matrix;
 let matrixKey;
 let rankingKey;
+let sourceKey;
 let paperSort = 'paper';
 let catalog;
 let map;
@@ -120,8 +121,8 @@ function renderPaperResults() {
   plotPaper(matrix, paperSort);
 }
 
-function renderSourceOmissions(data) {
-  const rows = sourceOmissionRows(data);
+function renderSourceOmissions(data, pooled, label) {
+  const rows = sourceOmissionRows(data, pooled);
   const fallback = $('source-fallback');
   if (!rows.length) {
     fallback.replaceChildren(element('p', 'No source-language cases for these filters.'));
@@ -129,7 +130,7 @@ function renderSourceOmissions(data) {
     return;
   }
   const table = element('table');
-  table.append(element('caption', 'Source-language omission by prompt', 'sr-only'));
+  table.append(element('caption', `Source-language omission by prompt · ${label}`, 'sr-only'));
   const header = table.createTHead().insertRow();
   for (const name of ['Source language', 'Baseline prompt', 'Diverse prompt']) {
     const heading = element('th', name);
@@ -151,18 +152,50 @@ function renderSourceOmissions(data) {
   plotOmissions(rows);
 }
 
+async function updateSourceOmissions(topic, lang, model, pooled, run) {
+  const key = `${topic}/${lang}/${model?.id ?? ''}`;
+  const status = $('source-status');
+  if (status.hasAttribute('data-model-error')) {
+    status.hidden = true;
+    delete status.dataset.modelError;
+  }
+  if (sourceKey === key) return;
+  let counts = pooled;
+  if (model) {
+    try {
+      const slices = await data(`source-omissions/${model.id}`);
+      counts = slices[topic]?.[lang];
+    } catch {
+      if (run !== renderId) return;
+      status.dataset.modelError = '';
+      status.textContent = `Source-language results for ${model.name} could not load.`;
+      status.hidden = false;
+      return;
+    }
+  }
+  if (run !== renderId) return;
+  const label = model?.name ?? 'All model configurations';
+  $('source-scope').textContent = label;
+  sourceKey = key;
+  renderSourceOmissions(counts, pooled, label);
+}
+
 async function renderLeaderboard(route, run) {
   const metric = Object.hasOwn(TASKS, route.metric) ? route.metric : 'NI';
   const topics = sortedTopics();
   const topic = topics.some(item => item.id === route.topic) ? route.topic : 'all';
   const lang = Object.hasOwn(catalog.languages, route.lang) ? route.lang : 'all';
   const entries = Object.entries(TASKS);
+  const sourceModel = catalog.models.find(model => model.id === route.sourceModel);
+  const modelOptions = catalog.models.map(({ id, name }) => [id, name]).sort((a, b) => a[1].localeCompare(b[1]));
+  options($('source-model'), [['', 'All model configurations'], ...modelOptions], sourceModel?.id ?? '');
   options($('metric'), entries.map(([id, [label, short]]) => [id, `${label} (${short})`]), metric);
   options($('rank-topic'), [['all', 'All topics'], ...topics.map(item => [item.id, item.label])], topic);
   options($('rank-language'), [['all', 'All query languages'], ...sortedLanguages()], lang);
   const hash = hashFor({
     page: 'leaderboard', metric: metric === 'NI' ? undefined : metric,
     topic: topic === 'all' ? undefined : topic, lang: lang === 'all' ? undefined : lang,
+    sourceModel: sourceModel?.id,
   });
   history.replaceState(null, '', hash);
   $('nav-leaderboard').href = hash;
@@ -173,30 +206,31 @@ async function renderLeaderboard(route, run) {
   ]);
   if (run !== renderId) return;
   paper = results;
+  const slice = slices?.[topic]?.[lang];
 
   if (matrixKey !== key) {
     const scope = [
       topics.find(item => item.id === topic)?.label ?? 'All topics',
       catalog.languages[lang] ?? 'All query languages',
     ];
-    const slice = slices?.[topic]?.[lang];
     if (filtered && !slice) scope.push('No evaluated cases');
     $('score-scope').textContent = filtered ? `Filtered · ${scope.join(' · ')}` : 'All topics · All query languages';
     matrix = filtered ? filteredResults(paper, slice) : paper;
     matrixKey = key;
     renderPaperResults();
-    renderSourceOmissions(filtered ? slice?.sourceOmissions : omissions);
   }
 
   const rankKey = `${key}/${metric}`;
-  if (rankingKey === rankKey) return;
-  rankingKey = rankKey;
-  const selection = sliceRanking(catalog, slices, topic, lang, metric);
-  const ranking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
-  const cases = selection?.counts[metric] ?? 0;
-  $('score-note').textContent =
-    `${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model for ${TASKS[metric][0]}`;
-  plotRanking(ranking, TASKS[metric][1], cases);
+  if (rankingKey !== rankKey) {
+    rankingKey = rankKey;
+    const selection = sliceRanking(catalog, slices, topic, lang, metric);
+    const ranking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
+    const cases = selection?.counts[metric] ?? 0;
+    $('score-note').textContent =
+      `${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model for ${TASKS[metric][0]}`;
+    plotRanking(ranking, TASKS[metric][1], cases);
+  }
+  await updateSourceOmissions(topic, lang, sourceModel, filtered ? slice?.sourceOmissions : omissions, run);
 }
 
 const queryList = $('queries');
@@ -313,6 +347,7 @@ function renderAnswer(container, response, lang) {
     text.textContent = 'No answer was recorded.';
   }
   container.replaceChildren(meta, text);
+  container.scrollTop = 0;
   currentResponses.set(container, response);
 }
 
@@ -519,7 +554,7 @@ $('paper-sort').addEventListener('change', event => {
 $('topic').addEventListener('change', event => selectTopic(event.target.value));
 for (const [id, parameter] of [
   ['language', 'lang'], ['task', 'task'], ['left-model', 'left'], ['right-model', 'right'], ['metric', 'metric'],
-  ['rank-topic', 'topic'], ['rank-language', 'lang'], ['map-language', 'mapLang'],
+  ['rank-topic', 'topic'], ['rank-language', 'lang'], ['source-model', 'sourceModel'], ['map-language', 'mapLang'],
 ]) {
   $(id).addEventListener('change', event => changeRoute({ [parameter]: event.target.value || undefined }));
 }
