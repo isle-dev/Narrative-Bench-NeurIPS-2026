@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { leaderboardFigure, paperResultsFigure, paperResultsRows } from '../src/leaderboard.mjs';
+import { leaderboardFigure, paperResultsFigure, paperResultsPreview, paperResultsRows } from '../src/leaderboard.mjs';
 import { rankedRows } from '../src/state.mjs';
 
 const models = [
@@ -46,14 +46,36 @@ test('the full results matrix preserves all published values and supports sortin
   const original = paperResultsFigure(paper, 'paper', 1240);
   assert.equal(original.traces.length, 11);
   assert.deepEqual(original.layout.yaxis.categoryarray, paper.rows.map(row => row.name));
-  assert.match(original.layout.xaxis.ticktext[0].replaceAll('<br>', ' '), /Narrative inclusion F1/);
-  assert.match(original.layout.xaxis.ticktext[10].replaceAll('<br>', ' '), /Language violations/);
+  assert.ok(original.layout.annotations.some(header => /Narrative inclusion F1/.test(header.text.replaceAll('<br>', ' '))));
+  assert.ok(original.layout.annotations.some(header => /Language violations/.test(header.text.replaceAll('<br>', ' '))));
   assert.deepEqual(original.traces[0].text.slice(0, 2), ['21.0 (1.0)', '26.0 (1.3)']);
   assert.equal(original.traces[0].marker.color[0], '#cb181d');
   const bestInclusion = paperResultsFigure(paper, '0', 1240);
   assert.equal(bestInclusion.layout.yaxis.categoryarray[0], 'Gemini 3.8 Flash (low)');
   const fewestViolations = paperResultsFigure(paper, '10', 1240);
   assert.equal(fewestViolations.traces[10].text[0], '22');
+});
+
+test('only the column controlling exact-score order is highlighted', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const paper = JSON.parse(await readFile(new URL('../paper-results.json', import.meta.url)));
+  const highlighted = (sort, metric) => paperResultsFigure(paper, sort, 1600, paper.rows, metric)
+    .layout.annotations.filter(header => header.bgcolor).map(header => header.x);
+  assert.deepEqual(highlighted('ranking', 'NI'), [.5]);
+  assert.deepEqual(highlighted('ranking', 'DP'), [4.5]);
+  assert.deepEqual(highlighted('10', 'DP'), [10.5]);
+  assert.deepEqual(highlighted('paper', 'DP'), []);
+});
+
+test('the homepage preview uses the published baseline and diverse recall values in rank order', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const paper = JSON.parse(await readFile(new URL('../paper-results.json', import.meta.url)));
+  const diverseIndex = paper.columns.findIndex(column => column.task === 'DP');
+  const ranking = paperResultsRows(paper, String(diverseIndex));
+  const preview = paperResultsPreview(paper, ranking);
+  assert.equal(preview.improved, 15);
+  assert.equal(preview.rows.length, 3);
+  assert.deepEqual(preview.rows[0], { name: 'Gemini 2.5 Pro', baseline: 70.6, diverse: 74.9 });
 });
 
 test('filtered scores keep the paper matrix shape and distinguish unavailable values from zero', async () => {

@@ -48,11 +48,29 @@ export function paperResultsRows(paper, sort, ranking) {
   });
 }
 
+export function paperSortColumn(paper, sort, metric) {
+  if (sort === 'paper') return -1;
+  return sort === 'ranking' ? paper.columns.findIndex(column => column.task === metric) : Number(sort);
+}
+
+export function paperResultsPreview(paper, ranking) {
+  const baseline = paper.columns.findIndex(column => column.task === 'BP');
+  const diverse = paper.columns.findIndex(column => column.task === 'DP');
+  const ordered = paperResultsRows(paper, 'ranking', ranking);
+  return {
+    improved: ordered.filter(({ cells }) => cells[diverse].value > cells[baseline].value).length,
+    total: ordered.length,
+    rows: ordered.slice(0, 3).map(({ name, cells }) => ({
+      name, baseline: cells[baseline].value, diverse: cells[diverse].value,
+    })),
+  };
+}
+
 function wrapColumnLabel(label) {
   const lines = [];
   let line = '';
   for (const word of label.split(' ')) {
-    if (line && line.length + word.length + 1 > 16) {
+    if (line && line.length + word.length + 1 > 19) {
       lines.push(line);
       line = '';
     }
@@ -61,9 +79,10 @@ function wrapColumnLabel(label) {
   return [...lines, line].join('<br>');
 }
 
-export function paperResultsFigure(paper, sort, width, ranking) {
+export function paperResultsFigure(paper, sort, width, ranking, metric) {
   const rows = paperResultsRows(paper, sort, ranking);
   const names = rows.map(row => row.name);
+  const activeColumn = paperSortColumn(paper, sort, metric);
   const traces = paper.columns.map((column, index) => {
     const cells = rows.map(row => row.cells[index]);
     return {
@@ -78,25 +97,32 @@ export function paperResultsFigure(paper, sort, width, ranking) {
         : `<b>%{y}</b><br>${column.description}: %{text} (${column.unit})<br>%{customdata[0]}–%{customdata[1]}% distance from ideal<extra></extra>`),
     };
   });
-  const group = (text, x, y, size = 12) => ({
-    text, x, y, xref: 'x', yref: 'paper', showarrow: false, font: { size },
+  const header = (text, x, yshift, size) => ({
+    text, x, y: 1, yshift, xref: 'x', yref: 'paper', yanchor: 'middle', showarrow: false, font: { size },
   });
   const layout = {
-    width, height: rows.length * 31 + 120,
-    margin: { l: 214, r: 16, t: 108, b: 12 },
-    barmode: 'stack', bargap: .11, showlegend: false, hovermode: 'closest', dragmode: false,
+    width, height: rows.length * 34 + 160,
+    margin: { l: 224, r: 16, t: 146, b: 14 },
+    barmode: 'stack', bargap: .16, showlegend: false, hovermode: 'closest', dragmode: false,
     paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { ...font, size: 12 },
     hoverlabel: { bgcolor: '#002d72', font: { color: '#f8f8fc' }, align: 'left' },
     annotations: [
-      group('<b>Foundational capabilities</b>', 1.5, 1.19, 13),
-      group('<b>Higher-level information-seeking capabilities</b>', 6.5, 1.19, 13),
-      group('<b>Language compliance</b>', 10.5, 1.19, 12),
+      header('<b>Foundational capabilities</b>', 1.5, 122, 13),
+      header('<b>Higher-level information-seeking capabilities</b>', 6.5, 122, 13),
+      header('<b>Language compliance</b>', 10.5, 122, 12),
+      ...paper.columns.map((column, index) => {
+        const selected = index === activeColumn;
+        const direction = column.task ? '↓' : '↑';
+        const unit = selected ? `(${column.unit}) ${direction}` : `(${column.unit})`;
+        return {
+          ...header(`<b>${wrapColumnLabel(column.description)}</b><br>${unit}`, index + .5, 57, 12),
+          ...(selected ? { bgcolor: '#f08087', borderpad: 8 } : {}),
+        };
+      }),
     ],
     xaxis: {
-      side: 'top', range: [0, paper.columns.length], tickmode: 'array', fixedrange: true,
-      tickvals: paper.columns.map((_, index) => index + .5),
-      ticktext: paper.columns.map(column => `<b>${wrapColumnLabel(column.description)}</b><br>(${column.unit})`),
-      tickfont: { size: 11 }, showgrid: false, zeroline: false,
+      range: [0, paper.columns.length], fixedrange: true, showticklabels: false,
+      showgrid: false, zeroline: false,
     },
     yaxis: {
       type: 'category', categoryorder: 'array', categoryarray: names, autorange: 'reversed',
@@ -176,9 +202,9 @@ function mountTablePlot(host, fallback, status, figure, wave) {
 
 export function mountPaperResults(host, fallback, status) {
   const update = mountTablePlot(host, fallback, status,
-    ({ paper, sort, ranking }, width) => paperResultsFigure(paper, sort, width, ranking),
+    ({ paper, sort, ranking, metric }, width) => paperResultsFigure(paper, sort, width, ranking, metric),
     ['.barlayer .trace', '.bartext']);
-  return (paper, sort, ranking) => update({ paper, sort, ranking });
+  return (paper, sort, ranking, metric) => update({ paper, sort, ranking, metric });
 }
 
 function omissionRate(counts) {
