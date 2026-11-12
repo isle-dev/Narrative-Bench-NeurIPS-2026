@@ -489,13 +489,13 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .results-preview {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.22fr);
   align-items: center; gap: clamp(1.15rem, 3.6vw, 3.8rem);
-  margin-block: clamp(1.25rem, 2.4vw, 2.35rem) .45rem;
+  margin-block: 0 clamp(1.25rem, 2.4vw, 2.35rem);
   padding: clamp(1.1rem, 2.55vw, 2.35rem);
   background: var(--sheet); border: 1px solid var(--line); border-top: 3px solid var(--highlight);
   color: var(--accent); text-decoration: none;
 }
 .results-preview:hover { border-color: var(--accent); border-top-color: var(--highlight); }
-.results-preview h2 { max-width: 19ch; font-size: clamp(1.6rem, 2.8vw, 2.7rem); line-height: 1.13; }
+.results-preview h2 { max-width: 25ch; font-size: clamp(1.6rem, 2.8vw, 2.7rem); line-height: 1.13; }
 .results-preview p { color: var(--muted); font-size: .93rem; margin-top: .65rem; }
 .results-preview-action {
   display: inline-flex; gap: .7em; align-items: center; margin-top: 1rem;
