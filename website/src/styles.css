@@ -54,9 +54,7 @@ h1, h2, h3 { font-family: var(--display); line-height: 1.08; font-weight: 550; l
 .skip-link:focus { position: absolute; z-index: 10; top: .4rem; left: .4rem; padding: .5rem; background: var(--sheet); }
 .shell { width: min(1500px, calc(100% - clamp(2rem, 5.6vw, 5.5rem))); margin-inline: auto; }
 .masthead { background: var(--paper); border-bottom: 1px solid var(--line); }
-.masthead-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 72px; }
-.institution { display: inline-flex; flex: none; align-items: center; }
-.institution img { display: block; width: 230px; height: auto; }
+.masthead-inner { display: flex; align-items: center; min-height: 60px; }
 nav { display: flex; align-items: center; gap: clamp(.3rem, 1.3vw, 1.2rem); }
 nav a { color: var(--accent); font-size: .91rem; font-weight: 650; text-decoration: none; padding: .46rem .7rem; border: 1px solid transparent; border-radius: 100px; }
 nav a:hover { background: var(--lavender); }
@@ -315,7 +313,16 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .author-list a { font-weight: 650; text-decoration: none; }
 .author-list a:hover { text-decoration: underline; }
 .author-list li > span { display: block; color: var(--muted); font-size: .85rem; margin-top: .14rem; }
-.footer-links { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.footer-links {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: .45rem 1.25rem; padding-block: .45rem; border-top: 1px solid var(--line);
+}
+.affiliation-logos {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .2rem clamp(.6rem, 2vw, 1.25rem);
+  list-style: none; margin: 0; padding: 0;
+}
+.affiliation-logos a, .affiliation-logos img { display: block; }
+.affiliation-logos img { height: auto; }
 .footer-links nav { width: auto; }
 #app-error { margin-top: 1rem; padding: .7rem; border: 1px solid var(--line); border-radius: 5px; }
 
@@ -338,8 +345,9 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
   .capability-group { padding: .65rem .85rem .45rem; }
   .capability-group li { min-height: 2rem; }
   .capability-group svg { width: 19px; height: 19px; }
-  .masthead-inner { flex-wrap: wrap; gap: .28rem; padding: .6rem 0 .52rem; }
-  nav { width: 100%; justify-content: space-between; }
+  .masthead-inner { min-height: 52px; padding-block: .45rem; }
+  .masthead-inner nav { flex-wrap: wrap; gap: .2rem; }
+  .masthead-inner nav a { white-space: nowrap; }
   nav a { font-size: .79rem; padding: .33rem .5rem; }
   .atlas-heading, .atlas-footer { padding: .74rem; }
   .map-toolbar { padding-inline: .74rem; }
