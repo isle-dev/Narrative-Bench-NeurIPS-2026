@@ -167,21 +167,25 @@ def version_browser_assets(site):
 
 
 def source_omission(context, answer):
-    """Count source languages with no valid in-context citation, regardless of answer language."""
+    """Find available and omitted source languages, regardless of answer language."""
     cited = set(re.findall(r"\bD\d{4}\b", answer or ""))
     available = set(context.values())
     covered = {context[doc_id] for doc_id in cited & context.keys()}
-    return len(available - covered), len(available)
+    return available, available - covered
 
 
 def ranking_slice(rows, cases, documents):
     summary = summarize(rows, cases, documents)["models"]
     omitted, opportunities = Counter(), Counter()
+    by_source_omitted = defaultdict(Counter)
+    by_source_available = defaultdict(Counter)
     for row in rows:
         if row["task"] in {"BP", "DP"}:
             key = row["model_id"], row["task"]
-            omitted[key] += row["source_omissions"]
-            opportunities[key] += row["source_opportunities"]
+            omitted[key] += len(row["omitted_languages"])
+            opportunities[key] += len(row["source_languages"])
+            by_source_omitted[row["task"]].update(row["omitted_languages"])
+            by_source_available[row["task"]].update(row["source_languages"])
 
     counts, scores, diagnostics = {}, {}, {}
     for model, result in summary.items():
@@ -202,7 +206,11 @@ def ranking_slice(rows, cases, documents):
             diagnostics[model][f"{task.lower()}_omission_pct"] = (
                 100 * omitted[key] / opportunities[key] if opportunities[key] else None
             )
-    return {"counts": counts, "scores": scores, "diagnostics": diagnostics}
+    source_omissions = {
+        task: {lang: [by_source_omitted[task][lang], total] for lang, total in sorted(by_source_available[task].items())}
+        for task in ("BP", "DP")
+    }
+    return {"counts": counts, "scores": scores, "diagnostics": diagnostics, "sourceOmissions": source_omissions}
 
 
 def pooled_score(slice_, model):
@@ -313,10 +321,10 @@ def build_site(release, output):
         if abs(score(case, answer, language, documents) - value) > 1e-12:
             raise ValueError(f"Recorded score does not replay: {case_id} {model}")
         responses[case_id][model] = {"text": answer, "language": language, "score": value}
-        omitted, opportunities = source_omission(source_languages[case_id], answer) if case_id in source_languages else (0, 0)
+        available, omitted = source_omission(source_languages[case_id], answer) if case_id in source_languages else ((), ())
         summary_rows.append({
             "case_id": case_id, "model_id": model, "task": case["task"], "score": value, "language_status": language,
-            "source_omissions": omitted, "source_opportunities": opportunities,
+            "source_languages": available, "omitted_languages": omitted,
             "topic": topics[case["topic"]]["id"], "query_language": case["query_language"],
         })
 
@@ -349,6 +357,8 @@ def build_site(release, output):
             entry = {"id": topic_id, "label": topic["label"], "point": point, "count": len(entries)}
             if "pinLabel" in topic:
                 entry["pinLabel"] = topic["pinLabel"]
+            if topic.get("keepQueryInCountry"):
+                entry["keepQueryInCountry"] = True
             regions = topic_regions(topic)
             if regions:
                 entry["regions"] = regions
@@ -382,6 +392,7 @@ def build_site(release, output):
         })
         write_json(data / "rankings.json", rankings)
         write_json(data / "paper-results.json", paper)
+        write_json(data / "source-omissions.json", aggregate["sourceOmissions"])
         write_json(data / "catalog.json", {
             "topics": catalog_topics, "languages": languages, "models": models_view,
             "counts": {"queries": len(queries), "cases": len(cases), "responses": len(summary_rows), "tasks": counts},

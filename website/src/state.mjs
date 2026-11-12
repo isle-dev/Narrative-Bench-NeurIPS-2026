@@ -16,6 +16,14 @@ function inScope(query, lang, scope) {
   return Boolean(query.translations[lang] && (scope === 'dataset' || Object.values(query.cases[lang] ?? {}).some(Boolean)));
 }
 
+export function queryScrollState(rows, height, scrollHeight, scrollTop) {
+  const max = Math.max(0, scrollHeight - height);
+  const position = Math.max(0, Math.min(scrollTop, max));
+  const first = rows.findIndex(row => row.offsetTop + row.offsetHeight > position) + 1;
+  const last = rows.findLastIndex(row => row.offsetTop < position + height) + 1;
+  return { first, last, max, position, atEnd: max - position < 1 };
+}
+
 export function queryChoices(queries, lang, scope) {
   return queries.filter(query => inScope(query, lang, scope));
 }

@@ -1,10 +1,10 @@
 {
   "Afghanistan–Pakistan tensions": {"id":"afghanistan-pakistan","label":"Afghanistan–Pakistan tensions","anchor":[71.105,34.111],"regions":[["Afghanistan",66,34],["Pakistan",72,31]]},
   "Armenia–Azerbaijan tensions (Nagorno‑Karabakh / border)": {"id":"armenia-azerbaijan","label":"Armenia–Azerbaijan tensions","anchor":[46.7528,39.8177],"regions":[["Armenia",44.8,40.2],["Azerbaijan",48.2,40.4]]},
-  "Confrontation over Taiwan (Taiwan Strait)": {"id":"taiwan-strait","label":"Taiwan Strait","anchor":[120.2,24.2],"regions":[["Mainland China",116,27],["Taiwan",121,23.7]]},
+  "Confrontation over Taiwan (Taiwan Strait)": {"id":"taiwan-strait","label":"Taiwan Strait","anchor":[112.5,29.5],"keepQueryInCountry":true,"regions":[["Mainland China",116,27],["Taiwan",121,23.7]]},
   "Greenland sovereignty / independence / Arctic contestation": {"id":"greenland","label":"Greenland sovereignty","anchor":[-51.6941,64.1814],"regions":[["Greenland",-42,71],["Denmark",10,56]]},
   "India internal regional / language-politics narratives": {"id":"india-language-politics","label":"Language politics in India","anchor":[78.9629,20.5937]},
-  "India–China border tensions": {"id":"india-china","label":"India–China border tensions","anchor":[78.8,34.2],"regions":[["India",78,28],["China",86,35]]},
+  "India–China border tensions": {"id":"india-china","label":"India–China border tensions","anchor":[86.5,36.5],"keepQueryInCountry":true,"regions":[["India",78,28],["China",86,35]]},
   "India–Pakistan (Kashmir escalation / 2025 crisis)": {"id":"kashmir","label":"Kashmir escalation","anchor":[74.7973,34.0837],"regions":[["India",78.7,30.5],["Pakistan",72,32]]},
   "Iran–Israel–U.S. confrontation (regional escalation)": {"id":"iran-israel-us","label":"Iran–Israel–U.S. confrontation","anchor":[44.3661,33.3152],"regions":[["Iran",53,32],["Israel",35,31.5],["United States",-98.35,39.5]]},
   "Iran–United States confrontation": {"id":"iran-us","label":"Iran–U.S. confrontation","anchor":[51.2,27.3],"regions":[["Iran",53,32],["United States",-98.35,39.5]]},

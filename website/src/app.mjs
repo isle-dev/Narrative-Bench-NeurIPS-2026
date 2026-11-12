@@ -1,6 +1,6 @@
 import { formatAnswer } from './answer-format.mjs';
-import { filteredResults, mountLeaderboardPlot, mountPaperResults, paperResultsRows } from './leaderboard.mjs';
-import { parseRoute, queryLanguages, resolveSelection, sliceRanking } from './state.mjs';
+import { filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsRows, sourceOmissionRows } from './leaderboard.mjs';
+import { parseRoute, queryLanguages, queryScrollState, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
   NI: ['Narrative Inclusion', 'NI F1'],
@@ -26,6 +26,7 @@ const currentResponses = new WeakMap();
 const assetVersion = new URL(import.meta.url).search;
 const plotRanking = mountLeaderboardPlot($('rank-plot'), $('ranking-status'));
 const plotPaper = mountPaperResults($('paper-matrix'), $('paper-fallback'), $('paper-status'));
+const plotOmissions = mountSourceOmissions($('source-plot'), $('source-fallback'), $('source-status'));
 let paper;
 let matrix;
 let matrixKey;
@@ -119,6 +120,37 @@ function renderPaperResults() {
   plotPaper(matrix, paperSort);
 }
 
+function renderSourceOmissions(data) {
+  const rows = sourceOmissionRows(data);
+  const fallback = $('source-fallback');
+  if (!rows.length) {
+    fallback.replaceChildren(element('p', 'No source-language cases for these filters.'));
+    plotOmissions(rows);
+    return;
+  }
+  const table = element('table');
+  table.append(element('caption', 'Source-language omission by prompt', 'sr-only'));
+  const header = table.createTHead().insertRow();
+  for (const name of ['Source language', 'Baseline prompt', 'Diverse prompt']) {
+    const heading = element('th', name);
+    heading.scope = 'col';
+    header.append(heading);
+  }
+  const body = table.createTBody();
+  for (const item of rows) {
+    const row = body.insertRow();
+    const heading = element('th', item.language);
+    heading.scope = 'row';
+    row.append(heading);
+    for (const counts of [item.BP, item.DP]) {
+      const text = counts ? `${percent(counts[0] / counts[1])} (${number.format(counts[0])} / ${number.format(counts[1])})` : '—';
+      row.append(element('td', text, 'number'));
+    }
+  }
+  fallback.replaceChildren(table);
+  plotOmissions(rows);
+}
+
 async function renderLeaderboard(route, run) {
   const metric = Object.hasOwn(TASKS, route.metric) ? route.metric : 'NI';
   const topics = sortedTopics();
@@ -136,7 +168,9 @@ async function renderLeaderboard(route, run) {
   $('nav-leaderboard').href = hash;
   const key = `${topic}/${lang}`;
   const filtered = topic !== 'all' || lang !== 'all';
-  const [results, slices] = await Promise.all([paper ?? data('paper-results'), filtered ? data('rankings') : null]);
+  const [results, slices, omissions] = await Promise.all([
+    paper ?? data('paper-results'), filtered ? data('rankings') : null, filtered ? null : data('source-omissions'),
+  ]);
   if (run !== renderId) return;
   paper = results;
 
@@ -151,6 +185,7 @@ async function renderLeaderboard(route, run) {
     matrix = filtered ? filteredResults(paper, slice) : paper;
     matrixKey = key;
     renderPaperResults();
+    renderSourceOmissions(filtered ? slice?.sourceOmissions : omissions);
   }
 
   const rankKey = `${key}/${metric}`;
@@ -164,9 +199,42 @@ async function renderLeaderboard(route, run) {
   plotRanking(ranking, TASKS[metric][1], cases);
 }
 
+const queryList = $('queries');
+const queryScrollbar = $('query-scrollbar');
+const moreQueries = $('more-queries');
+
+function updateQueryScroll() {
+  if (!queryList.clientHeight) return;
+  const rows = [...queryList.children];
+  const { first, last, max, position, atEnd } = queryScrollState(
+    rows, queryList.clientHeight, queryList.scrollHeight, queryList.scrollTop,
+  );
+  const overflow = max > 1;
+  queryScrollbar.hidden = !overflow;
+  $('query-pagination').hidden = !overflow;
+  if (!overflow) return;
+  const range = `Showing ${first === last ? first : `${first}–${last}`} of ${rows.length}`;
+  queryScrollbar.max = max;
+  queryScrollbar.value = position;
+  queryScrollbar.setAttribute('aria-valuetext', range);
+  $('query-range').textContent = range;
+  moreQueries.textContent = atEnd ? 'Back to first queries ↑' : 'More queries ↓';
+}
+
+queryList.addEventListener('scroll', updateQueryScroll, { passive: true });
+queryScrollbar.addEventListener('input', () => { queryList.scrollTop = queryScrollbar.valueAsNumber; });
+moreQueries.addEventListener('click', () => {
+  const atEnd = queryScrollbar.max - queryList.scrollTop < 1;
+  queryList.scrollTo({
+    top: atEnd ? 0 : queryList.scrollTop + queryList.clientHeight * .85,
+    behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+  });
+});
+new ResizeObserver(updateQueryScroll).observe(queryList);
+
 function renderQueries(topic, selection, scope) {
   const { lang, query, choices } = selection;
-  const list = $('queries');
+  const list = queryList;
   const key = `${topic.id}/${lang}/${scope}`;
   if (queryListKey !== key) {
     const buttons = choices.map(item => {
@@ -187,12 +255,13 @@ function renderQueries(topic, selection, scope) {
     queryListKey = key;
   }
   for (const button of list.children) button.setAttribute('aria-pressed', String(button.dataset.query === query?.id));
-  list.hidden = !choices.length;
+  $('query-browser').hidden = !choices.length;
   const active = [...list.children].find(button => button.dataset.query === query?.id);
   if (active && document.activeElement !== active) {
     const top = active.offsetTop;
     if (top < list.scrollTop || top + active.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = top;
   }
+  updateQueryScroll();
   $('query-count').textContent = choices.length ? `${number.format(choices.length)} ${choices.length === 1 ? 'query' : 'queries'}` : '';
   $('query-status').hidden = Boolean(choices.length);
   $('query-status').textContent = 'No questions are available for this selection.';
@@ -244,7 +313,6 @@ function renderAnswer(container, response, lang) {
     text.textContent = 'No answer was recorded.';
   }
   container.replaceChildren(meta, text);
-  container.scrollTop = 0;
   currentResponses.set(container, response);
 }
 
@@ -293,7 +361,27 @@ async function renderExplorer(route, run) {
   for (const button of document.querySelectorAll('[data-scope]')) {
     button.setAttribute('aria-pressed', String(button.dataset.scope === scope));
   }
-  for (const button of document.querySelectorAll('[data-pins]')) {
+  const answerReader = $('answer-reader');
+const readerOpener = $('open-answer-reader');
+readerOpener.hidden = typeof answerReader.showModal !== 'function';
+readerOpener.addEventListener('click', () => {
+  $('answer-reader-body').append($('answer-question'), $('answer-grid'));
+  answerReader.showModal();
+});
+$('close-answer-reader').addEventListener('click', () => answerReader.close());
+answerReader.addEventListener('close', () => {
+  $('answer-status').before($('answer-question'));
+  $('case-details').before($('answer-grid'));
+  readerOpener.focus({ preventScroll: true });
+});
+const answerTabs = document.querySelectorAll('button[data-answer-side]');
+for (const button of answerTabs) {
+  button.addEventListener('click', () => {
+    $('answer-grid').dataset.answerSide = button.dataset.answerSide;
+    for (const tab of answerTabs) tab.setAttribute('aria-pressed', String(tab === button));
+  });
+}
+for (const button of document.querySelectorAll('[data-pins]')) {
     button.setAttribute('aria-pressed', String(button.dataset.pins === mode));
   }
   options($('map-language'), [['', 'All languages'], ...sortedLanguages()], mapLang);
@@ -301,7 +389,7 @@ async function renderExplorer(route, run) {
 
   if (!queryListKey?.startsWith(`${topic.id}/`)) {
     $('language').disabled = true;
-    $('queries').hidden = true;
+    $('query-browser').hidden = true;
     $('query-count').textContent = '';
     $('query-status').hidden = false;
     $('query-status').textContent = 'Loading queries…';
@@ -315,6 +403,7 @@ async function renderExplorer(route, run) {
   if (renderId !== run) return;
   const selection = resolveSelection(questions, route);
   const { lang, query, task, caseId } = selection;
+  if ($('answer-reader').open && caseId !== loadedCase) $('answer-reader').close();
   activeQuery = query;
   const availableLanguages = queryLanguages(questions, scope);
   const languages = sortedLanguages().filter(([id]) => availableLanguages.has(id));
@@ -380,6 +469,7 @@ async function render() {
   const run = ++renderId;
   const route = parseRoute(location.hash);
   const explorer = route.page === 'explorer';
+  if (!explorer && $('answer-reader').open) $('answer-reader').close();
   $('explorer').hidden = !explorer;
   $('leaderboard').hidden = explorer;
   $('app-error').hidden = true;
@@ -413,6 +503,11 @@ function scrollToSection(id) {
 }
 
 $('open-map').addEventListener('click', () => scrollToSection('globe-section'));
+$('metric-guide-link').addEventListener('click', event => {
+  event.preventDefault();
+  $('score-method').open = true;
+  scrollToSection('score-method');
+});
 $('nav-authors').addEventListener('click', event => {
   event.preventDefault();
   scrollToSection('authors');

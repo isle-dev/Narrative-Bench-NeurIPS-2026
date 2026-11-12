@@ -143,9 +143,9 @@ function mountPlot(host, figure, { success, failure, wave }) {
   };
 }
 
-export function mountPaperResults(host, fallback, status) {
-  const update = mountPlot(host, ({ paper, sort }, width) => paperResultsFigure(paper, sort, width), {
-    wave: ['.barlayer .trace', '.bartext'],
+function mountTablePlot(host, fallback, status, figure, wave) {
+  return mountPlot(host, figure, {
+    wave,
     success() {
       fallback.classList.add('sr-only');
       status.hidden = true;
@@ -153,11 +153,64 @@ export function mountPaperResults(host, fallback, status) {
     failure() {
       host.hidden = true;
       fallback.classList.remove('sr-only');
-      status.textContent = 'Showing the exact scores in a standard table.';
+      status.textContent = 'Showing the results in a standard table.';
       status.hidden = false;
     },
   });
+}
+
+export function mountPaperResults(host, fallback, status) {
+  const update = mountTablePlot(host, fallback, status,
+    ({ paper, sort }, width) => paperResultsFigure(paper, sort, width),
+    ['.barlayer .trace', '.bartext']);
   return (paper, sort) => update({ paper, sort });
+}
+
+function omissionRate(counts) {
+  return counts ? counts[0] / counts[1] : null;
+}
+
+export function sourceOmissionRows(data = {}) {
+  const baseline = data.BP ?? {};
+  const diverse = data.DP ?? {};
+  return [...new Set([...Object.keys(baseline), ...Object.keys(diverse)])]
+    .map(language => ({ language, BP: baseline[language], DP: diverse[language] }))
+    .sort((a, b) => (omissionRate(b.DP) ?? omissionRate(b.BP)) - (omissionRate(a.DP) ?? omissionRate(a.BP))
+      || a.language.localeCompare(b.language));
+}
+
+export function sourceOmissionFigure(rows, width) {
+  const names = rows.map(row => row.language);
+  const traces = [
+    ['BP', 'Baseline prompt', '#68ace5'],
+    ['DP', 'Diverse prompt', '#145897'],
+  ].map(([task, name, color]) => ({
+    type: 'bar', orientation: 'h', name, y: names,
+    x: rows.map(row => omissionRate(row[task])),
+    customdata: rows.map(row => row[task] ?? [0, 0]),
+    marker: { color },
+    hovertemplate: `<b>%{y}</b><br>${name}: %{x:.1%}<br>%{customdata[0]} omissions / %{customdata[1]} opportunities<extra></extra>`,
+  }));
+  const layout = {
+    width, height: Math.max(182, rows.length * 26 + 90),
+    margin: { l: width < 530 ? 82 : 110, r: 24, t: 36, b: 54 },
+    barmode: 'group', bargap: .22, dragmode: false, hovermode: 'closest', showlegend: Boolean(rows.length),
+    legend: { orientation: 'h', x: 0, y: 1.02, yanchor: 'bottom' },
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { ...font, size: width < 530 ? 10 : 12 },
+    hoverlabel: { bgcolor: '#002d72', font: { color: '#f8f8fc' }, align: 'left' },
+    xaxis: { range: [0, 1], tickformat: '.0%', fixedrange: true, gridcolor: '#dce5ee',
+      title: { text: 'Source-language omission rate' } },
+    yaxis: { type: 'category', categoryorder: 'array', categoryarray: names, autorange: 'reversed', fixedrange: true },
+    annotations: rows.length ? [] : [{
+      text: 'No source-language cases for these filters', x: .5, y: .5, xref: 'paper', yref: 'paper',
+      showarrow: false, font: { size: 12 },
+    }],
+  };
+  return { traces, layout };
+}
+
+export function mountSourceOmissions(host, fallback, status) {
+  return mountTablePlot(host, fallback, status, sourceOmissionFigure, ['.barlayer .trace', '.point']);
 }
 
 export function leaderboardFigure(rows, metric, cases, width) {

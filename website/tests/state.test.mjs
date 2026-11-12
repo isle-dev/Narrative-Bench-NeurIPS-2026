@@ -57,3 +57,11 @@ test('dataset scope preserves unevaluated translations alongside evaluated quest
   assert.equal(selection.query.id, 'q1');
   assert.equal(selection.caseId, null);
 });
+
+test('query scroll guidance tracks visible rows and disappears when all fit', async () => {
+  const { queryScrollState } = await import('../src/state.mjs');
+  const rows = [0, 55, 110, 165, 220].map(offsetTop => ({ offsetTop, offsetHeight: 50 }));
+  assert.deepEqual(queryScrollState(rows, 120, 270, 0), { first: 1, last: 3, max: 150, position: 0, atEnd: false });
+  assert.deepEqual(queryScrollState(rows, 120, 270, 150), { first: 3, last: 5, max: 150, position: 150, atEnd: true });
+  assert.equal(queryScrollState(rows, 300, 300, 0).max, 0);
+});
