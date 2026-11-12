@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { leaderboardFigure } from '../src/leaderboard.mjs';
+import { leaderboardFigure, paperResultsFigure, paperResultsRows } from '../src/leaderboard.mjs';
 import { rankedRows } from '../src/state.mjs';
 
 const models = [
@@ -25,13 +25,29 @@ test('the plot allocates a smaller label area on mobile', () => {
   assert.ok(compact.margin.l < desktop.margin.l);
 });
 
+test('the exact scores follow the selected ranking, with paper order available', () => {
+  const paper = {
+    columns: [
+      { task: 'NI', description: 'Narrative inclusion F1', unit: '%' },
+      { task: 'NE', description: 'Narrative exclusion F1', unit: '%' },
+    ],
+    rows: models.map(model => ({ id: model.id, name: model.name, cells: [] })),
+  };
+  const inclusion = rankedRows(models, 'NI');
+  const exclusion = rankedRows(models, 'NE');
+  assert.deepEqual(paperResultsRows(paper, 'ranking', inclusion).map(row => row.id), ['a', 'b']);
+  assert.deepEqual(paperResultsRows(paper, 'ranking', exclusion).map(row => row.id), ['b', 'a']);
+  assert.equal(paperResultsRows(paper, 'paper', exclusion), paper.rows);
+});
+
 test('the full results matrix preserves all published values and supports sorting', async () => {
   const { readFile } = await import('node:fs/promises');
-  const { paperResultsFigure } = await import('../src/leaderboard.mjs');
   const paper = JSON.parse(await readFile(new URL('../paper-results.json', import.meta.url)));
   const original = paperResultsFigure(paper, 'paper', 1240);
   assert.equal(original.traces.length, 11);
   assert.deepEqual(original.layout.yaxis.categoryarray, paper.rows.map(row => row.name));
+  assert.match(original.layout.xaxis.ticktext[0].replaceAll('<br>', ' '), /Narrative inclusion F1/);
+  assert.match(original.layout.xaxis.ticktext[10].replaceAll('<br>', ' '), /Language violations/);
   assert.deepEqual(original.traces[0].text.slice(0, 2), ['21.0 (1.0)', '26.0 (1.3)']);
   assert.equal(original.traces[0].marker.color[0], '#cb181d');
   const bestInclusion = paperResultsFigure(paper, '0', 1240);
@@ -42,7 +58,7 @@ test('the full results matrix preserves all published values and supports sortin
 
 test('filtered scores keep the paper matrix shape and distinguish unavailable values from zero', async () => {
   const { readFile } = await import('node:fs/promises');
-  const { filteredResults, paperResultsFigure } = await import('../src/leaderboard.mjs');
+  const { filteredResults } = await import('../src/leaderboard.mjs');
   const paper = JSON.parse(await readFile(new URL('../paper-results.json', import.meta.url)));
   const id = paper.rows[0].id;
   const slice = {
