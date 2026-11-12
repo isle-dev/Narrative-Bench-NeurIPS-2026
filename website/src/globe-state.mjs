@@ -46,21 +46,45 @@ export function queryCount(topics, index, scope, language) {
     .filter(query => mapQueryMatches(query, scope, language)).length, 0);
 }
 
-export function queryMarkerPosition(anchor, width, height, occupied) {
+export function queryMarkerPosition(anchor, width, height, occupied, sharedAnchor = false) {
   const radius = 40;
   const margin = 23;
   let best;
   let clearance = -Infinity;
-  for (let direction = 0; direction < 8; direction++) {
+  const directions = sharedAnchor ? [0, 4, 1, 2, 3, 5, 6, 7] : [0, 1, 2, 3, 4, 5, 6, 7];
+  for (const direction of directions) {
     const angle = direction * Math.PI / 4;
     const x = anchor.x + radius * Math.cos(angle);
     const y = anchor.y + radius * Math.sin(angle);
     if (x < margin || x > width - margin || y < margin || y > height - margin) continue;
     const gap = Math.min(...occupied.map(pin => Math.hypot(x - pin.x, y - pin.y)));
+    if (sharedAnchor && (direction === 0 || direction === 4) && gap >= 38) return { x, y: anchor.y };
     if (gap > clearance) {
       best = { x, y };
       clearance = gap;
     }
   }
   return best ?? anchor;
+}
+
+export function conflictLinks(regions) {
+  return {
+    type: 'MultiLineString',
+    coordinates: regions.slice(1).map(region => [regions[0].location, region.location]),
+  };
+}
+
+export function regionCenter(regions) {
+  const radians = Math.PI / 180;
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  for (const { location: [longitude, latitude] } of regions) {
+    const lon = longitude * radians;
+    const lat = latitude * radians;
+    x += Math.cos(lat) * Math.cos(lon);
+    y += Math.cos(lat) * Math.sin(lon);
+    z += Math.sin(lat);
+  }
+  return [Math.atan2(y, x) / radians, Math.atan2(z, Math.hypot(x, y)) / radians];
 }

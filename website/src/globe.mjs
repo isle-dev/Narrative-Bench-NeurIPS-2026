@@ -1,7 +1,7 @@
 import './vendor/d3-array.js';
 import './vendor/d3-geo.js';
 import {
-  clusterPins, globeLayers, globeView, mapQueryMatches, queryAnswerLanguage, queryCount, queryMarkerPosition, unproject,
+  clusterPins, conflictLinks, globeLayers, globeView, mapQueryMatches, queryAnswerLanguage, queryCount, queryMarkerPosition, regionCenter, unproject,
 } from './globe-state.mjs';
 
 const DEFAULT_VIEW = globeView(23, 20, 1);
@@ -15,6 +15,7 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
   const menu = document.querySelector('#cluster');
   const mapNote = document.querySelector('#map-note');
   const crossRegion = document.querySelector('#cross-region-queries');
+  const linkedRegions = document.querySelector('#linked-regions');
   const plus = document.querySelector('#zoom-in');
   const minus = document.querySelector('#zoom-out');
   const reset = document.querySelector('#globe-reset');
@@ -23,7 +24,7 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
 
   const { geoDistance, geoGraticule, geoOrthographic, geoPath } = globalThis.d3;
   const projection = geoOrthographic().precision(.55);
-  const path = geoPath(projection, context);
+  const path = geoPath(projection, context).pointRadius(3.25);
   const grid = geoGraticule().step([20, 20])();
   const land = {
     type: 'GeometryCollection',
@@ -40,6 +41,7 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
   let drag;
   let frame;
   let expanded;
+  let regions = [];
 
   function closeMenu(restoreFocus = false) {
     menu.hidden = true;
@@ -129,6 +131,10 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
     const layers = globeLayers(selection.mode);
     document.querySelector('#legend-topics').hidden = !layers.conflicts;
     document.querySelector('#legend-queries').hidden = !layers.queries;
+    const topic = placedTopics.find(item => item.id === selection.topic);
+    regions = layers.conflicts ? topic?.regions ?? [] : [];
+    linkedRegions.hidden = regions.length === 0;
+    linkedRegions.textContent = regions.length ? `Linked regions · ${regions.map(region => region.label).join(' · ')}` : '';
     const crossCount = queryCount(crossRegionalTopics, queryIndex, selection.scope, selection.mapLang);
     crossRegion.hidden = !layers.queries || crossCount === 0;
     crossRegion.textContent = `${crossCount} cross-regional ${crossCount === 1 ? 'query' : 'queries'}`;
@@ -181,7 +187,8 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
       let queryPin;
       const count = layers.queries ? queryCount(members, queryIndex, selection.scope, selection.mapLang) : 0;
       if (count) {
-        queryPin = layers.conflicts ? queryMarkerPosition(group, width, height, occupied) : group;
+        const sharedAnchor = members.length > 1 && members.every(topic => topic.x === x && topic.y === y);
+        queryPin = layers.conflicts ? queryMarkerPosition(group, width, height, occupied, sharedAnchor) : group;
         occupied.push(queryPin);
         context.moveTo(x, y);
         context.lineTo(queryPin.x, queryPin.y);
@@ -257,9 +264,9 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
     projection.scale(radius).translate([cx, cy]).rotate([-view.lon, -view.lat]);
 
     const ocean = context.createRadialGradient(cx - radius * .28, cy - radius * .44, radius * .03, cx, cy, radius);
-    ocean.addColorStop(0, '#456ac5');
-    ocean.addColorStop(.66, '#253e95');
-    ocean.addColorStop(1, '#182858');
+    ocean.addColorStop(0, '#3d73ac');
+    ocean.addColorStop(.66, '#16447a');
+    ocean.addColorStop(1, '#092951');
     context.beginPath();
     path(SPHERE);
     context.fillStyle = ocean;
@@ -269,8 +276,8 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
     context.shadowBlur = 0;
 
     const ground = context.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
-    ground.addColorStop(0, '#a2c1b6');
-    ground.addColorStop(1, '#739c96');
+    ground.addColorStop(0, '#b4d2d8');
+    ground.addColorStop(1, '#779dae');
     context.beginPath();
     path(land);
     context.fillStyle = ground;
@@ -289,6 +296,28 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
     context.strokeStyle = '#97baff';
     context.lineWidth = 1.25;
     context.stroke();
+    if (regions.length) {
+      context.save();
+      context.beginPath();
+      path(conflictLinks(regions));
+      context.strokeStyle = '#082b58';
+      context.lineWidth = 4;
+      context.setLineDash([1, 7]);
+      context.lineCap = 'round';
+      context.stroke();
+      context.strokeStyle = '#e9f48a';
+      context.lineWidth = 2;
+      context.stroke();
+      context.beginPath();
+      path({ type: 'MultiPoint', coordinates: regions.map(region => region.location) });
+      context.fillStyle = '#e9f48a';
+      context.fill();
+      context.setLineDash([]);
+      context.lineWidth = 1.4;
+      context.strokeStyle = '#082b58';
+      context.stroke();
+      context.restore();
+    }
     drawMarkers(width, height);
   }
 
@@ -340,11 +369,14 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
     setSelection(next, refocus = false) {
       if (!next) return;
       const center = refocus || selection?.topic !== next.topic;
+      const hadRegions = regions.length > 0;
       selection = next;
       updateControls();
-      if (center) {
+      if (center || (regions.length > 0 && !hadRegions)) {
         const topic = placedTopics.find(item => item.id === selection.topic);
-        if (topic) setView(...topic.location, view.zoom);
+        const span = Math.max(0, ...regions.map(region => geoDistance(topic.location, region.location)));
+        if (span > LIMB) setView(...regionCenter(regions), 1);
+        else if (topic) setView(...topic.location, span ? Math.min(view.zoom, .9 / Math.sin(span)) : view.zoom);
         else setView(DEFAULT_VIEW.lon, DEFAULT_VIEW.lat, DEFAULT_VIEW.zoom);
       } else {
         scheduleDraw();

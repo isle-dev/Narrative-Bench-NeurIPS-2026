@@ -53,3 +53,19 @@ test('query clusters count distinct questions regardless of selected answer lang
   assert.equal(mapQueryMatches(q1, 'dataset', 'en'), true);
   assert.equal(queryCount([{ id: 'one' }, { id: 'two' }], { one: [q1], two: [q2] }, 'benchmark', 'en'), 1);
 });
+
+test('selected conflict links join the named regions across the antimeridian', async () => {
+  const { conflictLinks, regionCenter } = await import('../src/globe-state.mjs');
+  const regions = [{ location: [170, 30] }, { location: [-170, 30] }, { location: [179, 40] }];
+  assert.equal(conflictLinks(regions).coordinates.length, 2);
+  assert.deepEqual(conflictLinks(regions).coordinates[0], [[170, 30], [-170, 30]]);
+  assert.ok(Math.abs(regionCenter(regions)[0]) > 170);
+  assert.deepEqual(conflictLinks([]).coordinates, []);
+});
+
+test('query groups with a shared geographic anchor stay level with the topic marker', () => {
+  const anchor = { x: 175, y: 150 };
+  const query = queryMarkerPosition(anchor, 350, 300, [anchor], true);
+  assert.equal(query.y, anchor.y);
+  assert.ok(Math.abs(query.x - anchor.x) >= 35);
+});

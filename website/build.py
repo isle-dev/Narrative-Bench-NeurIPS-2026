@@ -85,6 +85,41 @@ def project(lon, lat):
     return [round((lon + 180) / 360 * 1000, 2), round((84 - lat) / 144 * 400, 2)]
 
 
+def topic_regions(topic):
+    regions = topic.get("regions")
+    if regions is None:
+        return []
+    if len(regions) < 2:
+        raise ValueError("Linked regions require at least two locations")
+    entries = []
+    for label, lon, lat in regions:
+        if not label or not -180 <= lon <= 180 or not -90 <= lat <= 90:
+            raise ValueError("Invalid linked regions")
+        entries.append({"label": label, "location": [lon, lat]})
+    if len({item["label"] for item in entries}) != len(entries) or len({tuple(item["location"]) for item in entries}) != len(entries):
+        raise ValueError("Linked regions must be distinct")
+    return entries
+
+
+def validate_paper_results(paper, models):
+    rows = index_rows(paper["rows"], "id")
+    columns = paper["columns"]
+    if set(rows) != {model["id"] for model in models} or len(columns) != 11:
+        raise ValueError("Paper table must cover the benchmark models and all 11 metrics")
+    for model in models:
+        cells = rows[model["id"]]["cells"]
+        if len(cells) != len(columns):
+            raise ValueError(f"Incomplete paper results for {model['id']}")
+        for column, cell in zip(columns, cells):
+            if not 0 <= cell["bin"] < len(paper["palette"]):
+                raise ValueError(f"Invalid paper color bin for {model['id']}")
+            task = column["task"]
+            if task:
+                actual = f"{int(model['scores'][task] * 1000 + 0.5) / 10:.1f}"
+                if cell["display"].split()[0] != actual:
+                    raise ValueError(f"Paper score does not match the pinned release: {model['id']} {task}")
+
+
 def write_json(path, data):
     with path.open("w", encoding="utf-8") as stream:
         json.dump(data, stream, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
@@ -227,6 +262,9 @@ def build_site(release, output):
         for model, name in models.items()
     ]
 
+    paper = json.loads((HERE / "paper-results.json").read_text(encoding="utf-8"))
+    validate_paper_results(paper, models_view)
+
     with tempfile.TemporaryDirectory(dir=output.parent) as stage:
         site = Path(stage) / "site"
         shutil.copytree(HERE / "src", site)
@@ -243,6 +281,9 @@ def build_site(release, output):
             entry = {"id": topic_id, "label": topic["label"], "point": point, "count": len(entries)}
             if "pinLabel" in topic:
                 entry["pinLabel"] = topic["pinLabel"]
+            regions = topic_regions(topic)
+            if regions:
+                entry["regions"] = regions
             catalog_topics.append(entry)
             write_json(data / "topics" / f"{topic_id}.json", entries)
             topic_queries[topic_id] = entries
@@ -272,6 +313,7 @@ def build_site(release, output):
             for doc_id, row in documents.items()
         })
         write_json(data / "rankings.json", ranking_slices(summary_rows))
+        write_json(data / "paper-results.json", paper)
         write_json(data / "catalog.json", {
             "topics": catalog_topics, "languages": languages, "models": models_view,
             "counts": {"queries": len(queries), "cases": len(cases), "responses": len(summary_rows), "tasks": counts},
