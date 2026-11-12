@@ -497,7 +497,6 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .results-preview:hover { border-color: var(--accent); border-top-color: var(--highlight); }
 .results-preview h2 { max-width: 19ch; font-size: clamp(1.6rem, 2.8vw, 2.7rem); line-height: 1.13; }
 .results-preview p { color: var(--muted); font-size: .93rem; margin-top: .65rem; }
-.results-preview p:empty { display: none; }
 .results-preview-action {
   display: inline-flex; gap: .7em; align-items: center; margin-top: 1rem;
   padding: .45rem .72rem; border: 1px solid var(--accent); border-radius: 5px;

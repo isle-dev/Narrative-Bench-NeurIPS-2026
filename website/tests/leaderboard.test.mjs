@@ -67,15 +67,14 @@ test('only the column controlling exact-score order is highlighted', async () =>
   assert.deepEqual(highlighted('paper', 'DP'), []);
 });
 
-test('the homepage preview uses the published baseline and diverse recall values in rank order', async () => {
+test('the homepage preview shows the best published score for each foundational task', async () => {
   const { readFile } = await import('node:fs/promises');
   const paper = JSON.parse(await readFile(new URL('../paper-results.json', import.meta.url)));
-  const diverseIndex = paper.columns.findIndex(column => column.task === 'DP');
-  const ranking = paperResultsRows(paper, String(diverseIndex));
-  const preview = paperResultsPreview(paper, ranking);
-  assert.equal(preview.improved, 15);
-  assert.equal(preview.rows.length, 3);
-  assert.deepEqual(preview.rows[0], { name: 'Gemini 2.5 Pro', baseline: 70.6, diverse: 74.9 });
+  assert.deepEqual(paperResultsPreview(paper), [
+    { measure: 'Narrative inclusion F1', name: 'Gemini 3.8 Flash (low)', score: 52.5 },
+    { measure: 'Narrative exclusion F1', name: 'Gemini 2.5 Pro', score: 74.2 },
+    { measure: 'Missing narrative identification recall', name: 'Gemini 3.8 Flash (low)', score: 82.8 },
+  ]);
 });
 
 test('filtered scores keep the paper matrix shape and distinguish unavailable values from zero', async () => {

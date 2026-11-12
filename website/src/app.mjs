@@ -1,6 +1,6 @@
 import { formatAnswer } from './answer-format.mjs';
 import { filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsPreview, paperResultsRows, paperSortColumn, sourceOmissionRows } from './leaderboard.mjs';
-import { parseRoute, queryLanguages, queryScrollState, rankedRows, resolveSelection, sliceRanking } from './state.mjs';
+import { parseRoute, queryLanguages, queryScrollState, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
   NI: 'Narrative inclusion',
@@ -139,16 +139,12 @@ async function renderResultsPreview() {
   } catch {
     return;
   }
-  const preview = paperResultsPreview(paper, rankedRows(catalog.models, 'DP'));
-  $('results-preview-summary').textContent = preview.improved === preview.total
-    ? `All ${preview.total} model configurations had higher narrative recall on the benchmark.`
-    : `${preview.improved} of ${preview.total} model configurations had higher narrative recall with the diverse prompt.`;
   const body = $('results-preview-rows');
-  body.replaceChildren(...preview.rows.map(({ name, baseline, diverse }) => {
+  body.replaceChildren(...paperResultsPreview(paper).map(({ measure, name, score }) => {
     const row = element('tr');
-    const heading = element('th', name);
+    const heading = element('th', measure);
     heading.scope = 'row';
-    row.append(heading, element('td', `${baseline.toFixed(1)}%`, 'number'), element('td', `${diverse.toFixed(1)}%`, 'number'));
+    row.append(heading, element('td', name), element('td', `${score.toFixed(1)}%`, 'number'));
     return row;
   }));
   $('results-preview-table').hidden = false;

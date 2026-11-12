@@ -53,17 +53,12 @@ export function paperSortColumn(paper, sort, metric) {
   return sort === 'ranking' ? paper.columns.findIndex(column => column.task === metric) : Number(sort);
 }
 
-export function paperResultsPreview(paper, ranking) {
-  const baseline = paper.columns.findIndex(column => column.task === 'BP');
-  const diverse = paper.columns.findIndex(column => column.task === 'DP');
-  const ordered = paperResultsRows(paper, 'ranking', ranking);
-  return {
-    improved: ordered.filter(({ cells }) => cells[diverse].value > cells[baseline].value).length,
-    total: ordered.length,
-    rows: ordered.slice(0, 3).map(({ name, cells }) => ({
-      name, baseline: cells[baseline].value, diverse: cells[diverse].value,
-    })),
-  };
+export function paperResultsPreview(paper) {
+  return ['NI', 'NE', 'MNI'].map(task => {
+    const index = paper.columns.findIndex(column => column.task === task);
+    const [best] = paperResultsRows(paper, String(index));
+    return { measure: paper.columns[index].description, name: best.name, score: best.cells[index].value };
+  });
 }
 
 function wrapColumnLabel(label) {
