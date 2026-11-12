@@ -36,7 +36,7 @@ export function leaderboardFigure(rows, metric, cases, width) {
     paper_bgcolor: 'transparent',
     plot_bgcolor: 'transparent',
     font: { family: 'DM Sans, system-ui, sans-serif', color: '#181b30', size: compact ? 10 : 13 },
-    hoverlabel: { bgcolor: '#161e36', font: { color: '#fff' }, align: 'left' },
+    hoverlabel: { bgcolor: '#161e36', font: { color: '#f8f8fc' }, align: 'left' },
     xaxis: {
       range: [0, 1],
       tickformat: '.0%',

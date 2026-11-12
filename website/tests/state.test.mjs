@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseRoute, queryChoices, evaluatedLanguages, resolveSelection, rankedRows, sliceRanking } from '../src/state.mjs';
+import { parseRoute, queryChoices, queryLanguages, resolveSelection, rankedRows, sliceRanking } from '../src/state.mjs';
 
 const queries = [
   { id: 'q1', translations: { en: 'first', ar: 'أول' }, cases: { ar: { DP: 'c1' } } },
@@ -12,8 +12,8 @@ test('only recognized fragment routes and parameters are used', () => {
     page: 'leaderboard', metric: 'NE', topic: 'gaza', lang: 'ar',
   });
   assert.deepEqual(parseRoute('#unknown?topic=china'), { page: 'explorer' });
-  assert.deepEqual(parseRoute('#explore?topic=china&query=q1&lang=ar&task=DP'), {
-    page: 'explorer', topic: 'china', query: 'q1', lang: 'ar', task: 'DP',
+  assert.deepEqual(parseRoute('#explore?topic=china&query=q1&lang=ar&task=DP&pins=queries&scope=dataset&mapLang=ar'), {
+    page: 'explorer', topic: 'china', query: 'q1', lang: 'ar', task: 'DP', pins: 'queries', scope: 'dataset', mapLang: 'ar',
   });
 });
 
@@ -22,7 +22,7 @@ test('only offers evaluated questions and falls back from an old unevaluated lin
   assert.equal(resolveSelection(queries, { lang: 'en' }).caseId, 'c3');
   assert.equal(resolveSelection(queries, { lang: 'en', query: 'q1' }).caseId, 'c3');
   assert.deepEqual(queryChoices(queries, 'en').map(query => query.id), ['q2']);
-  assert.deepEqual([...evaluatedLanguages([queries[0]])], ['ar']);
+  assert.deepEqual([...queryLanguages([queries[0]])], ['ar']);
   assert.equal(resolveSelection(queries, { lang: 'ar', query: 'q2' }).caseId, 'c1');
   assert.equal(resolveSelection(queries, { lang: 'invalid', task: 'invalid' }).lang, 'en');
   assert.deepEqual(queryChoices(queries, 'ar').map(query => query.id), ['q1']);
@@ -48,4 +48,12 @@ test('filtered rankings use only the requested slice and keep its denominator', 
   assert.equal(sliceRanking(catalog, filters, 'gaza', 'ar', 'NI').counts.NI, 2);
   assert.equal(sliceRanking(catalog, filters, 'gaza', 'fr', 'NI'), null);
   assert.equal(sliceRanking(catalog, filters, 'all', 'all', 'NI').rows[0].id, 'a');
+});
+
+test('dataset scope preserves unevaluated translations alongside evaluated questions', () => {
+  assert.deepEqual(queryChoices(queries, 'en', 'dataset').map(query => query.id), ['q1', 'q2']);
+  assert.deepEqual([...queryLanguages([queries[0]], 'dataset')], ['en', 'ar']);
+  const selection = resolveSelection(queries, { scope: 'dataset', lang: 'en', query: 'q1' });
+  assert.equal(selection.query.id, 'q1');
+  assert.equal(selection.caseId, null);
 });

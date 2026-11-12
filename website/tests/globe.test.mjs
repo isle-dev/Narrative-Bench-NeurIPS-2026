@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { globeView, clusterPins, queryPinPositions, unproject } from '../src/globe-state.mjs';
+import { globeView, clusterPins, queryMarkerPosition, globeLayers, queryAnswerLanguage, queryCount, mapQueryMatches, unproject } from '../src/globe-state.mjs';
 
 test('globe views wrap longitude and clamp latitude and zoom', () => {
   assert.deepEqual(globeView(190, -100, 5), { lon: -170, lat: -85, zoom: 3 });
@@ -25,15 +25,31 @@ test('published map coordinates decode to the original geographic extent', () =>
   assert.deepEqual(unproject([500, 200]), [0, 12]);
 });
 
-test('query pins fan out from a topic without covering nearby topic markers', () => {
+test('globe layers independently control conflict and query markers', () => {
+  assert.deepEqual(globeLayers('conflicts'), { conflicts: true, queries: false });
+  assert.deepEqual(globeLayers('queries'), { conflicts: false, queries: true });
+  assert.deepEqual(globeLayers('both'), { conflicts: true, queries: true });
+  assert.deepEqual(globeLayers('invalid'), globeLayers('both'));
+});
+
+test('a query badge avoids the anchor and an adjacent conflict pin', () => {
   const anchor = { x: 150, y: 120 };
-  const other = { x: 216, y: 120 };
-  const pins = queryPinPositions(anchor, 3, 300, 240, [anchor, other]);
-  assert.equal(pins.length, 3);
-  for (const pin of pins) {
-    assert.ok(pin.x >= 17 && pin.x <= 283 && pin.y >= 17 && pin.y <= 223);
-    assert.ok(Math.hypot(pin.x - anchor.x, pin.y - anchor.y) > 36);
-    assert.ok(Math.hypot(pin.x - other.x, pin.y - other.y) > 36);
-  }
-  assert.deepEqual(queryPinPositions(null, 3, 300, 240, []), []);
+  const other = { x: 190, y: 120 };
+  const pin = queryMarkerPosition(anchor, 300, 240, [anchor, other]);
+  assert.ok(pin.x >= 23 && pin.x <= 277 && pin.y >= 23 && pin.y <= 217);
+  assert.ok(Math.hypot(pin.x - anchor.x, pin.y - anchor.y) >= 37);
+  assert.ok(Math.hypot(pin.x - other.x, pin.y - other.y) >= 37);
+});
+
+test('query clusters count distinct questions regardless of selected answer language', () => {
+  const q1 = { id: 'q1', languages: ['ar', 'fr'], available: ['ar', 'en', 'fr'] };
+  const q2 = { id: 'q2', languages: ['ar', 'en'], available: ['ar', 'en'] };
+  assert.equal(queryCount([{ id: 'one' }, { id: 'two' }], { one: [q1], two: [q2] }), 2);
+  assert.equal(queryAnswerLanguage(q1, 'fr'), 'fr');
+  assert.equal(queryAnswerLanguage(q1, 'en'), 'ar');
+  assert.equal(queryAnswerLanguage(q2, 'fr'), 'en');
+  assert.equal(queryAnswerLanguage(q1, 'en', 'dataset'), 'en');
+  assert.equal(mapQueryMatches(q1, 'benchmark', 'en'), false);
+  assert.equal(mapQueryMatches(q1, 'dataset', 'en'), true);
+  assert.equal(queryCount([{ id: 'one' }, { id: 'two' }], { one: [q1], two: [q2] }, 'benchmark', 'en'), 1);
 });

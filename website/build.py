@@ -136,6 +136,25 @@ def ranking_slices(rows):
     return slices
 
 
+def map_query_index(topic_queries):
+    index = {}
+    for topic_id, rows in topic_queries.items():
+        entries = []
+        for query in rows:
+            texts = query["translations"]
+            available = sorted(lang for lang, text in texts.items() if text)
+            if not available:
+                continue
+            evaluated = sorted(lang for lang in available if any(query["cases"].get(lang, {}).values()))
+            preview = "en" if "en" in available else (evaluated or available)[0]
+            entries.append({
+                "id": query["id"], "text": texts[preview], "textLang": preview,
+                "languages": evaluated, "available": available,
+            })
+        index[topic_id] = entries
+    return index
+
+
 def build_site(release, output):
     for name, digest in LOCK["sha256"].items():
         verify_input(release / name, digest)
@@ -216,6 +235,7 @@ def build_site(release, output):
         (data / "topics").mkdir(parents=True)
         (data / "cases").mkdir()
         catalog_topics = []
+        topic_queries = {}
         for key, topic in topics.items():
             topic_id = file_id(topic["id"])
             entries = queries_by_topic[key]
@@ -225,6 +245,8 @@ def build_site(release, output):
                 entry["pinLabel"] = topic["pinLabel"]
             catalog_topics.append(entry)
             write_json(data / "topics" / f"{topic_id}.json", entries)
+            topic_queries[topic_id] = entries
+        write_json(data / "map-queries.json", map_query_index(topic_queries))
         for case_id, case in cases.items():
             write_json(data / "cases" / f"{case_id}.json", {
                 "id": case_id,

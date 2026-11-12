@@ -1,16 +1,20 @@
 import './vendor/d3-array.js';
 import './vendor/d3-geo.js';
-import { clusterPins, globeView, queryPinPositions, unproject } from './globe-state.mjs';
+import {
+  clusterPins, globeLayers, globeView, mapQueryMatches, queryAnswerLanguage, queryCount, queryMarkerPosition, unproject,
+} from './globe-state.mjs';
 
 const DEFAULT_VIEW = globeView(23, 20, 1);
 const SPHERE = { type: 'Sphere' };
 const LIMB = Math.PI * .475;
 
-export function mountGlobe(countries, topics, selectTopic, selectQuery) {
+export function mountGlobe(countries, { topics, languages, queryIndex }, { selectTopic, selectQuery }) {
   const map = document.querySelector('#map');
   const canvas = document.querySelector('#world');
   const markers = document.querySelector('#markers');
   const menu = document.querySelector('#cluster');
+  const mapNote = document.querySelector('#map-note');
+  const crossRegion = document.querySelector('#cross-region-queries');
   const plus = document.querySelector('#zoom-in');
   const minus = document.querySelector('#zoom-out');
   const reset = document.querySelector('#globe-reset');
@@ -30,8 +34,9 @@ export function mountGlobe(countries, topics, selectTopic, selectQuery) {
   };
   const placedTopics = topics.filter(topic => topic.point)
     .map(topic => ({ ...topic, location: unproject(topic.point) }));
+  const crossRegionalTopics = topics.filter(topic => !topic.point);
   let view = DEFAULT_VIEW;
-  let selection;
+  let selection = { mode: 'both', scope: 'benchmark' };
   let drag;
   let frame;
   let expanded;
@@ -43,30 +48,103 @@ export function mountGlobe(countries, topics, selectTopic, selectQuery) {
     expanded = null;
   }
 
-  function openMenu(button, members) {
+  function matchingQueries(topic) {
+    return (queryIndex[topic.id] ?? []).filter(query => mapQueryMatches(query, selection.scope, selection.mapLang));
+  }
+
+  function openMenu(button, title, content) {
     const wasExpanded = expanded === button;
     closeMenu(wasExpanded);
     if (wasExpanded) return;
     expanded = button;
     button.setAttribute('aria-expanded', 'true');
+    const heading = document.createElement('div');
+    heading.className = 'cluster-heading';
+    const label = document.createElement('h3');
+    label.id = 'cluster-title';
+    label.textContent = title;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'Close';
+    close.addEventListener('click', () => closeMenu(true));
+    heading.append(label, close);
+    menu.replaceChildren(heading, ...content);
+    menu.scrollTop = 0;
+    menu.hidden = false;
+    close.focus({ preventScroll: true });
+    if (button === crossRegion) menu.scrollIntoView({ block: 'nearest' });
+  }
+
+  function openTopicMenu(button, members) {
     const choices = members.map(topic => {
       const item = document.createElement('button');
       item.type = 'button';
       item.textContent = topic.label;
-      item.setAttribute('aria-pressed', String(topic.id === selection?.topic));
+      item.setAttribute('aria-pressed', String(topic.id === selection.topic));
       item.addEventListener('click', () => {
         closeMenu(true);
         selectTopic(topic.id);
       });
       return item;
     });
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.textContent = 'Close topic list';
-    close.addEventListener('click', () => closeMenu(true));
-    menu.replaceChildren(...choices, close);
-    menu.hidden = false;
-    choices[0].focus();
+    openMenu(button, 'Nearby topics', choices);
+  }
+
+  function openQueryMenu(button, members, title) {
+    const sections = members.flatMap(topic => {
+      const queries = matchingQueries(topic);
+      if (!queries.length) return [];
+      const section = document.createElement('section');
+      section.className = 'cluster-queries';
+      const heading = document.createElement('h4');
+      heading.textContent = topic.label;
+      section.append(heading);
+      for (const query of queries) {
+        const lang = queryAnswerLanguage(query, selection.mapLang || selection.lang, selection.scope);
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.dataset.queryId = query.id;
+        item.setAttribute('aria-pressed', String(query.id === selection.queryId));
+        const text = document.createElement('span');
+        text.textContent = query.text;
+        text.lang = query.textLang;
+        text.dir = 'auto';
+        const note = document.createElement('small');
+        note.textContent = `${languages[lang]} · ${query.languages.includes(lang) ? 'Recorded answers' : 'Dataset only'}`;
+        item.append(text, note);
+        item.addEventListener('click', () => {
+          closeMenu(true);
+          selectQuery(topic.id, query.id, lang);
+        });
+        section.append(item);
+      }
+      return [section];
+    });
+    openMenu(button, title, sections);
+  }
+
+  crossRegion.addEventListener('click', () => openQueryMenu(crossRegion, crossRegionalTopics, 'Cross-regional queries'));
+
+  function updateControls() {
+    const layers = globeLayers(selection.mode);
+    document.querySelector('#legend-topics').hidden = !layers.conflicts;
+    document.querySelector('#legend-queries').hidden = !layers.queries;
+    const crossCount = queryCount(crossRegionalTopics, queryIndex, selection.scope, selection.mapLang);
+    crossRegion.hidden = !layers.queries || crossCount === 0;
+    crossRegion.textContent = `${crossCount} cross-regional ${crossCount === 1 ? 'query' : 'queries'}`;
+    if (!layers.queries) {
+      mapNote.textContent = 'Drag to rotate the globe.';
+      return;
+    }
+    const count = queryCount(topics, queryIndex, selection.scope, selection.mapLang);
+    const noun = count === 1 ? 'question' : 'questions';
+    if (selection.mapLang) {
+      mapNote.textContent = `${count} ${selection.scope === 'benchmark' ? 'evaluated ' : ''}${noun} in ${languages[selection.mapLang]}. Diamonds group queries by topic.`;
+    } else {
+      const field = selection.scope === 'dataset' ? 'available' : 'languages';
+      const versions = Object.values(queryIndex).flat().reduce((sum, query) => sum + query[field].length, 0);
+      mapNote.textContent = `${count} ${noun} · ${versions.toLocaleString('en')} ${selection.scope === 'benchmark' ? 'evaluated ' : ''}language versions.`;
+    }
   }
 
   function place(topic, width, height) {
@@ -76,25 +154,52 @@ export function mountGlobe(countries, topics, selectTopic, selectQuery) {
     return { ...topic, x, y };
   }
 
+  function pinButton(className, id, x, y) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.dataset.pin = id;
+    button.style.left = `${x}px`;
+    button.style.top = `${y}px`;
+    return button;
+  }
+
   function drawMarkers(width, height) {
     const focusedId = document.activeElement?.dataset.pin;
     closeMenu();
-    const points = placedTopics.map(topic => place(topic, width, height)).filter(Boolean);
-    const anchor = points.find(topic => topic.id === selection?.topic);
-    const groups = clusterPins(points, selection?.topic, 36);
-    const queries = selection?.queries ?? [];
-    const queryPositions = queryPinPositions(anchor, queries.length, width, height, groups);
-    const buttons = groups.map(({ x, y, members }) => {
-      const button = document.createElement('button');
+    const layers = globeLayers(selection.mode);
+    const points = placedTopics.filter(topic => layers.conflicts || matchingQueries(topic).length)
+      .map(topic => place(topic, width, height)).filter(Boolean);
+    const groups = clusterPins(points, selection.topic, layers.conflicts && layers.queries ? 53 : 39);
+    const occupied = [...groups];
+    const buttons = [];
+    context.beginPath();
+    for (const group of groups) {
+      const { x, y, members } = group;
       const ids = members.map(topic => topic.id).sort().join(' ');
-      const active = members.find(topic => topic.id === selection?.topic);
-      button.type = 'button';
-      button.className = 'map-marker';
-      button.dataset.pin = ids;
-      button.style.left = `${x}px`;
-      button.style.top = `${y}px`;
-      const fanOnRight = queryPositions.some(pin => pin.x > x + 10);
-      button.classList.toggle('label-left', active && queryPositions.length ? fanOnRight : x > width * .62);
+      const active = members.find(topic => topic.id === selection.topic);
+      let queryPin;
+      const count = layers.queries ? queryCount(members, queryIndex, selection.scope, selection.mapLang) : 0;
+      if (count) {
+        queryPin = layers.conflicts ? queryMarkerPosition(group, width, height, occupied) : group;
+        occupied.push(queryPin);
+        context.moveTo(x, y);
+        context.lineTo(queryPin.x, queryPin.y);
+        const button = pinButton('query-pin', `queries:${ids}`, queryPin.x, queryPin.y);
+        const label = `${count} ${count === 1 ? 'query' : 'queries'} · ${members.length === 1 ? members[0].label : `${members.length} nearby topics`}`;
+        button.setAttribute('aria-label', label);
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-controls', 'cluster');
+        button.title = label;
+        button.classList.toggle('selected', Boolean(active));
+        button.textContent = count;
+        button.addEventListener('click', () => openQueryMenu(button, members, label));
+        buttons.push(button);
+      }
+      if (!layers.conflicts) continue;
+
+      const button = pinButton('map-marker', `topics:${ids}`, x, y);
+      button.classList.toggle('label-left', queryPin ? queryPin.x >= x : x > width * .62);
       button.classList.toggle('selected', Boolean(active));
       const dot = document.createElement('span');
       dot.className = 'marker-dot';
@@ -109,43 +214,26 @@ export function mountGlobe(countries, topics, selectTopic, selectQuery) {
         button.setAttribute('aria-label', `${members.length} nearby topics: ${members.map(topic => topic.label).join(' · ')}`);
         button.setAttribute('aria-expanded', 'false');
         button.setAttribute('aria-controls', 'cluster');
-        const count = document.createElement('span');
-        count.textContent = String(members.length);
-        button.append(count);
-        button.addEventListener('click', () => openMenu(button, members));
+        const countLabel = document.createElement('span');
+        countLabel.textContent = members.length;
+        button.append(countLabel);
+        button.addEventListener('click', () => openTopicMenu(button, members));
       }
-      if (active) {
+      if (active && !layers.queries) {
         const label = document.createElement('span');
         label.className = 'pin-label';
         label.setAttribute('aria-hidden', 'true');
         label.textContent = active.pinLabel ?? active.label;
         button.append(label);
       }
-      return button;
-    });
-    if (queryPositions.length) {
-      context.beginPath();
-      queryPositions.forEach(({ x, y }, index) => {
-        context.moveTo(anchor.x, anchor.y);
-        context.lineTo(x, y);
-        const query = queries[index];
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'query-pin';
-        button.dataset.pin = `query:${query.id}`;
-        button.style.left = `${x}px`;
-        button.style.top = `${y}px`;
-        button.title = query.text;
-        button.setAttribute('aria-label', `Query: ${query.text}`);
-        button.setAttribute('aria-pressed', String(query.id === selection.queryId));
-        button.addEventListener('click', () => selectQuery(query.id));
-        buttons.push(button);
-      });
-      context.lineWidth = 3;
+      buttons.push(button);
+    }
+    if (layers.conflicts && layers.queries) {
+      context.lineWidth = 2.5;
       context.strokeStyle = '#132341';
       context.stroke();
       context.setLineDash([4, 3]);
-      context.lineWidth = 1.6;
+      context.lineWidth = 1.35;
       context.strokeStyle = '#b9f4ff';
       context.stroke();
       context.setLineDash([]);
@@ -210,6 +298,7 @@ export function mountGlobe(countries, topics, selectTopic, selectQuery) {
 
   function setView(lon, lat, zoom) {
     view = globeView(lon, lat, zoom);
+    map.classList.toggle('map-zoomed', view.zoom > 1);
     plus.disabled = view.zoom >= 3;
     minus.disabled = view.zoom <= 1;
     scheduleDraw();
@@ -252,6 +341,7 @@ export function mountGlobe(countries, topics, selectTopic, selectQuery) {
       if (!next) return;
       const center = refocus || selection?.topic !== next.topic;
       selection = next;
+      updateControls();
       if (center) {
         const topic = placedTopics.find(item => item.id === selection.topic);
         if (topic) setView(...topic.location, view.zoom);

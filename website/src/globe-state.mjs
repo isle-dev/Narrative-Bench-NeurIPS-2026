@@ -22,23 +22,45 @@ export function clusterPins(points, selected, gap) {
   return groups;
 }
 
-export function queryPinPositions(anchor, count, width, height, topicPins) {
-  if (!anchor || !count) return [];
-  const radius = 53;
-  const margin = 18;
-  let best = [];
+export function globeLayers(mode) {
+  return { conflicts: mode !== 'queries', queries: mode !== 'conflicts' };
+}
+
+function languagesForScope(query, scope) {
+  return scope === 'dataset' ? query.available : query.languages;
+}
+
+export function mapQueryMatches(query, scope, language) {
+  const languages = languagesForScope(query, scope);
+  return language ? languages.includes(language) : languages.length > 0;
+}
+
+export function queryAnswerLanguage(query, preferred, scope) {
+  const languages = languagesForScope(query, scope);
+  if (languages.includes(preferred)) return preferred;
+  return languages.includes('en') ? 'en' : languages[0];
+}
+
+export function queryCount(topics, index, scope, language) {
+  return topics.reduce((count, topic) => count + (index[topic.id] ?? [])
+    .filter(query => mapQueryMatches(query, scope, language)).length, 0);
+}
+
+export function queryMarkerPosition(anchor, width, height, occupied) {
+  const radius = 40;
+  const margin = 23;
+  let best;
   let clearance = -Infinity;
   for (let direction = 0; direction < 8; direction++) {
-    const fan = Array.from({ length: count }, (_, index) => {
-      const angle = direction * Math.PI / 4 + (index - (count - 1) / 2) * .83;
-      return { x: anchor.x + radius * Math.cos(angle), y: anchor.y + radius * Math.sin(angle) };
-    });
-    if (fan.some(({ x, y }) => x < margin || x > width - margin || y < margin || y > height - margin)) continue;
-    const gap = Math.min(...fan.flatMap(pin => topicPins.map(topic => Math.hypot(pin.x - topic.x, pin.y - topic.y))));
+    const angle = direction * Math.PI / 4;
+    const x = anchor.x + radius * Math.cos(angle);
+    const y = anchor.y + radius * Math.sin(angle);
+    if (x < margin || x > width - margin || y < margin || y > height - margin) continue;
+    const gap = Math.min(...occupied.map(pin => Math.hypot(x - pin.x, y - pin.y)));
     if (gap > clearance) {
-      best = fan;
+      best = { x, y };
       clearance = gap;
     }
   }
-  return best;
+  return best ?? anchor;
 }
