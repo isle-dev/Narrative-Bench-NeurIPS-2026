@@ -10,3 +10,4 @@ language-labels.jsonl
 scores.jsonl
 results.json
 /website/dist/
+/website/node_modules/

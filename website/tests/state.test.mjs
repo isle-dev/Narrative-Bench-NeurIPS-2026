@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseRoute, queryChoices, resolveSelection, rankedRows, mapView } from '../src/state.mjs';
+import { parseRoute, queryChoices, resolveSelection, rankedRows } from '../src/state.mjs';
 
 const queries = [
   { id: 'q1', translations: { en: 'first', ar: 'أول' }, cases: { ar: { DP: 'c1' } } },
@@ -32,9 +32,4 @@ test('leaderboard ranks by chosen metric with tied display values and stable nam
   ];
   assert.deepEqual(rankedRows(models, 'NI').map(row => [row.rank, row.name]), [[1, 'B'], [1, 'C'], [3, 'A']]);
   assert.deepEqual(rankedRows(models, 'DP').map(row => row.name), ['C', 'A', 'B']);
-});
-
-test('map pan clamps to geographic bounds at the selected zoom', () => {
-  assert.deepEqual(mapView(2, -10, 600), { zoom: 2, x: 250, y: 300, width: 500, height: 200 });
-  assert.deepEqual(mapView(1, 1, 1), { zoom: 1, x: 500, y: 200, width: 1000, height: 400 });
 });

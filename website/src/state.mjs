@@ -41,14 +41,3 @@ export function rankedRows(models, metric) {
       : index + 1,
   }));
 }
-
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-
-export function mapView(scale, centerX, centerY) {
-  const zoom = clamp(scale, 1, 8);
-  const width = 1000 / zoom;
-  const height = 400 / zoom;
-  const x = clamp(centerX, width / 2, 1000 - width / 2);
-  const y = clamp(centerY, height / 2, 400 - height / 2);
-  return { zoom, x, y, width, height };
-}
