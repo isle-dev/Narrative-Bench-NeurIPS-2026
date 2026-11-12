@@ -163,3 +163,17 @@ class BuildTests(unittest.TestCase):
                 self.assertIn(f'./leaderboard.mjs?v={version}', (site / "app.mjs").read_text())
                 self.assertIn(f'./vendor/plotly.js?v={version}', (site / "app.mjs").read_text())
             self.assertNotEqual(*versions)
+
+    def test_affiliation_logos_are_linked_in_the_footer_only(self):
+        source = build.HERE / "src"
+        page = (source / "index.html").read_text()
+        header = page.split("</header>", 1)[0]
+        footer = page.split('<footer class="shell footer">', 1)[1]
+        for url, filename, name in (
+            ("https://www.jhu.edu/", "johns-hopkins.svg", "Johns Hopkins University"),
+            ("https://cohere.com/", "cohere.svg", "Cohere"),
+            ("https://www.gmu.edu/", "george-mason.png", "George Mason University"),
+        ):
+            self.assertNotIn(filename, header)
+            self.assertRegex(footer, rf'<a href="{re.escape(url)}">\s*<img src="./assets/{re.escape(filename)}"[^>]*alt="{name}"')
+            self.assertTrue((source / "assets" / filename).is_file())
