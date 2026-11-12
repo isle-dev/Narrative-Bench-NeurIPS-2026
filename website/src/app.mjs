@@ -23,6 +23,7 @@ const number = new Intl.NumberFormat('en');
 const percent = value => `${(Math.round(value * 1000) / 10).toFixed(1)}%`;
 const cache = new Map();
 const currentResponses = new WeakMap();
+const assetVersion = new URL(import.meta.url).search;
 const plotRanking = mountLeaderboardPlot($('rank-plot'), $('ranking-status'));
 const plotPaper = mountPaperResults($('paper-matrix'), $('paper-fallback'), $('paper-status'));
 let paper;
@@ -41,7 +42,7 @@ let loadedCase;
 
 function data(path) {
   if (!cache.has(path)) {
-    const request = fetch(new URL(`./data/${path}.json`, import.meta.url))
+    const request = fetch(new URL(`./data/${path}.json${assetVersion}`, import.meta.url))
       .then(response => {
         if (!response.ok) throw new Error(`Could not load ${path}`);
         return response.json();
@@ -442,7 +443,7 @@ for (const button of document.querySelectorAll('[data-scope]')) {
 }
 const bibtex = $('citation-text');
 const copyBibtex = $('copy-bibtex');
-fetch(new URL('./narrativebench.bib', import.meta.url)).then(response => {
+fetch(new URL(`./narrativebench.bib${assetVersion}`, import.meta.url)).then(response => {
   if (!response.ok) throw new Error('BibTeX could not load');
   return response.text();
 }).then(text => {
