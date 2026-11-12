@@ -1,0 +1,17 @@
+{
+  "command-a-03-2025": "Command A (03-2025)",
+  "deepseek-v4-flash-off": "DeepSeek V4 Flash",
+  "gemini": "Gemini 2.5 Pro",
+  "gemini-flash": "Gemini 2.5 Flash",
+  "gemini-3.8-flash": "Gemini 3.8 Flash (low)",
+  "gemma4-26b-it-off": "Gemma 4 26B-A4B IT",
+  "gpt-5.4-mini": "GPT-5.4 mini",
+  "gpt-6-luna": "GPT-6 Luna",
+  "gptoss-20b-low-3000": "GPT-OSS 20B (low, 3K)",
+  "gptoss-20b-medium-16384": "GPT-OSS 20B (medium, 16K)",
+  "gptoss-120b-low-3000": "GPT-OSS 120B (low, 3K)",
+  "kimi-2.6": "Kimi K2.6",
+  "qwen35-0.8b-it": "Qwen3.5 0.8B IT",
+  "qwen35-9b-it": "Qwen3.5 9B IT",
+  "qwen35-9b-base": "Qwen3.5 9B Base"
+}
