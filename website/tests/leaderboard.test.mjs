@@ -67,3 +67,16 @@ test('the empty ranking keeps its model axis and frame without drawing zero scor
   assert.deepEqual(traces[1].x, [null, null]);
   assert.equal(layout.height, leaderboardFigure(rankedRows(models, 'NI'), 'NI F1', 4, 800).layout.height);
 });
+
+test('source-language omission rates use available source-language opportunities', async () => {
+  const { sourceOmissionFigure, sourceOmissionRows } = await import('../src/leaderboard.mjs');
+  const rows = sourceOmissionRows({
+    BP: { English: [1, 4], Arabic: [3, 4] },
+    DP: { English: [1, 2], Arabic: [2, 3], Persian: [0, 2] },
+  });
+  assert.deepEqual(rows.map(row => row.language), ['Arabic', 'English', 'Persian']);
+  const { traces } = sourceOmissionFigure(rows, 700);
+  assert.deepEqual(traces[0].x, [.75, .25, null]);
+  assert.deepEqual(traces[1].x, [2 / 3, .5, 0]);
+  assert.deepEqual(traces[1].customdata[0], [2, 3]);
+});

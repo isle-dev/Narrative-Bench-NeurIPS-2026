@@ -69,3 +69,23 @@ test('query groups with a shared geographic anchor stay level with the topic mar
   assert.equal(query.y, anchor.y);
   assert.ok(Math.abs(query.x - anchor.x) >= 35);
 });
+
+test('China-related topic anchors sit inside the mainland polygon', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { geoContains } = await import('d3-geo');
+  const topics = JSON.parse(await readFile(new URL('../topics.json', import.meta.url)));
+  const countries = JSON.parse(await readFile(new URL('../geo/countries.json', import.meta.url)));
+  const china = countries.map(coordinates => ({ type: 'MultiPolygon', coordinates }))
+    .find(country => geoContains(country, [104.2, 35.8]));
+  assert.ok(china);
+  for (const id of ['india-china', 'taiwan-strait']) {
+    const { anchor } = Object.values(topics).find(topic => topic.id === id);
+    assert.ok(geoContains(china, anchor), `${id} must be inside mainland China`);
+  }
+});
+
+test('a query badge can stay within its topic country when there is room', () => {
+  const anchor = { x: 175, y: 150 };
+  const query = queryMarkerPosition(anchor, 350, 300, [anchor], false, ({ x }) => x < anchor.x);
+  assert.ok(query.x < anchor.x);
+});

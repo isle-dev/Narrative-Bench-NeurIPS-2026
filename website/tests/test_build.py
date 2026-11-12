@@ -50,7 +50,7 @@ class BuildTests(unittest.TestCase):
         rows = [
             {"topic": topic, "query_language": lang, "model_id": model, "case_id": str(i),
              "task": task, "score": score, "language_status": "same" if score else "different",
-             "source_omissions": int(not score), "source_opportunities": 1}
+             "source_languages": ("English",), "omitted_languages": () if score else ("English",)}
             for i, (topic, lang, task, pair) in enumerate(scores)
             for model, score in zip(("a", "b"), pair)
         ]
@@ -65,13 +65,15 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(slices["gaza"]["all"]["scores"]["a"]["NI"], 0.5)
         self.assertEqual(slices["all"]["ar"]["counts"], {"NI": 2, "DP": 1})
         self.assertEqual(slices["all"]["ar"]["diagnostics"]["b"]["dp_omission_pct"], 100)
+        self.assertEqual(slices["all"]["ar"]["sourceOmissions"]["DP"]["English"], [1, 2])
         self.assertIsNone(slices["tigray"]["ar"]["diagnostics"]["a"]["query_language_gap_pp"])
         self.assertNotIn("en", slices["tigray"])
 
     def test_source_omission_counts_only_valid_citations_and_unique_languages(self):
         context = {"D0001": "English", "D0002": "English", "D0003": "French", "D0004": "Arabic"}
-        self.assertEqual(build.source_omission(context, "[D0001][D0002] D1234"), (2, 3))
-        self.assertEqual(build.source_omission(context, ""), (3, 3))
+        self.assertEqual(build.source_omission(context, "[D0001][D0002] D1234"),
+                         ({"Arabic", "English", "French"}, {"Arabic", "French"}))
+        self.assertEqual(build.source_omission(context, ""), (set(context.values()), set(context.values())))
 
     def test_map_query_index_records_dataset_and_evaluated_languages(self):
         rows = {
@@ -100,7 +102,9 @@ class BuildTests(unittest.TestCase):
             self.assertIn(label, page)
         self.assertIn('id="paper-matrix"', page)
         self.assertNotIn('id="slice-scores"', page)
-        self.assertIn('<details class="score-method" open>', page)
+        self.assertIn('<details class="score-method" id="score-method" tabindex="-1" open>', page)
+        self.assertIn('id="source-plot"', page)
+        self.assertIn('Language-gated scores.', page)
         self.assertIn('<details class="case-details" open>', page)
         self.assertIn('eprint={2611.12750}', (source / 'narrativebench.bib').read_text())
 

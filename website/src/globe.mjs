@@ -22,7 +22,7 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Map canvas is unavailable');
 
-  const { geoDistance, geoGraticule, geoOrthographic, geoPath } = globalThis.d3;
+  const { geoContains, geoDistance, geoGraticule, geoOrthographic, geoPath } = globalThis.d3;
   const projection = geoOrthographic().precision(.55);
   const path = geoPath(projection, context).pointRadius(3.25);
   const grid = geoGraticule().step([20, 20])();
@@ -33,8 +33,11 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
       coordinates: country.map(polygon => polygon.map(ring => ring.map(unproject))),
     })),
   };
-  const placedTopics = topics.filter(topic => topic.point)
-    .map(topic => ({ ...topic, location: unproject(topic.point) }));
+  const placedTopics = topics.filter(topic => topic.point).map(topic => {
+    const location = unproject(topic.point);
+    const country = topic.keepQueryInCountry && land.geometries.find(shape => geoContains(shape, location));
+    return { ...topic, location, country };
+  });
   const crossRegionalTopics = topics.filter(topic => !topic.point);
   let view = DEFAULT_VIEW;
   let selection = { mode: 'both', scope: 'benchmark' };
@@ -188,7 +191,12 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
       const count = layers.queries ? queryCount(members, queryIndex, selection.scope, selection.mapLang) : 0;
       if (count) {
         const sharedAnchor = members.length > 1 && members.every(topic => topic.x === x && topic.y === y);
-        queryPin = layers.conflicts ? queryMarkerPosition(group, width, height, occupied, sharedAnchor) : group;
+        const country = (active ?? members[0]).country;
+        const preferredPosition = country ? ({ x, y }) => {
+          const location = projection.invert([x, y]);
+          return geoDistance([view.lon, view.lat], location) <= LIMB && geoContains(country, location);
+        } : undefined;
+        queryPin = layers.conflicts ? queryMarkerPosition(group, width, height, occupied, sharedAnchor, preferredPosition) : group;
         occupied.push(queryPin);
         context.moveTo(x, y);
         context.lineTo(queryPin.x, queryPin.y);
@@ -305,12 +313,12 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
       context.setLineDash([1, 7]);
       context.lineCap = 'round';
       context.stroke();
-      context.strokeStyle = '#e9f48a';
+      context.strokeStyle = '#ffe3b5';
       context.lineWidth = 2;
       context.stroke();
       context.beginPath();
       path({ type: 'MultiPoint', coordinates: regions.map(region => region.location) });
-      context.fillStyle = '#e9f48a';
+      context.fillStyle = '#ffe3b5';
       context.fill();
       context.setLineDash([]);
       context.lineWidth = 1.4;

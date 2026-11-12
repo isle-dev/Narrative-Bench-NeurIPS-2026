@@ -46,11 +46,13 @@ export function queryCount(topics, index, scope, language) {
     .filter(query => mapQueryMatches(query, scope, language)).length, 0);
 }
 
-export function queryMarkerPosition(anchor, width, height, occupied, sharedAnchor = false) {
+export function queryMarkerPosition(anchor, width, height, occupied, sharedAnchor = false, preferredPosition) {
   const radius = 40;
   const margin = 23;
   let best;
+  let preferred;
   let clearance = -Infinity;
+  let preferredClearance = 28;
   const directions = sharedAnchor ? [0, 4, 1, 2, 3, 5, 6, 7] : [0, 1, 2, 3, 4, 5, 6, 7];
   for (const direction of directions) {
     const angle = direction * Math.PI / 4;
@@ -58,13 +60,19 @@ export function queryMarkerPosition(anchor, width, height, occupied, sharedAncho
     const y = anchor.y + radius * Math.sin(angle);
     if (x < margin || x > width - margin || y < margin || y > height - margin) continue;
     const gap = Math.min(...occupied.map(pin => Math.hypot(x - pin.x, y - pin.y)));
-    if (sharedAnchor && (direction === 0 || direction === 4) && gap >= 38) return { x, y: anchor.y };
+    const point = { x, y };
+    const matchesPreference = preferredPosition?.(point);
+    if (sharedAnchor && (direction === 0 || direction === 4) && gap >= 38 && (!preferredPosition || matchesPreference)) return { x, y: anchor.y };
+    if (matchesPreference && gap > preferredClearance) {
+      preferred = point;
+      preferredClearance = gap;
+    }
     if (gap > clearance) {
-      best = { x, y };
+      best = point;
       clearance = gap;
     }
   }
-  return best ?? anchor;
+  return preferred ?? best ?? anchor;
 }
 
 export function conflictLinks(regions) {
