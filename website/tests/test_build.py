@@ -1,4 +1,5 @@
 import importlib.util
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -98,7 +99,7 @@ class BuildTests(unittest.TestCase):
         for key in ("mamdani", "us_midterms"):
             self.assertEqual(topics[key]["anchor"], [-98.35, 39.5])
 
-    def test_each_paper_author_has_a_personal_link_in_the_shared_footer(self):
+    def test_author_links_follow_paper_order_in_the_hero_and_footer(self):
         page = (build.HERE / "src/index.html").read_text()
         footer = page.split("<footer class=\"shell footer\">", 1)[1]
         authors = [
@@ -107,6 +108,11 @@ class BuildTests(unittest.TestCase):
             ("Kenton Murray", "https://kentonmurray.com/"),
             ("Ziang Xiao", "https://www.ziangxiao.com/"),
         ]
-        for name, url in authors:
-            self.assertIn(f'<a href="{url}">{name}', footer)
+        hero = page.split('<header class="research-hero">', 1)[1].split("</header>", 1)[0]
+        self.assertRegex(hero, r'</h1>\s+<p class="hero-byline">')
+        byline = hero.split('<p class="hero-byline">', 1)[1].split("</p>", 1)[0]
+        footer_list = footer.split('<ul class="author-list">', 1)[1].split("</ul>", 1)[0]
+        for section in (byline, footer_list):
+            links = re.findall(r'<a href="([^"]+)">([^<]+)', section)
+            self.assertEqual([(name.strip(), url) for url, name in links], authors)
         self.assertIn('href="#authors"', page.split("</header>", 1)[0])
