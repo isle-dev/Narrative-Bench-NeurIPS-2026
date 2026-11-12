@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore NarrativeBench questions, compare recorded model answers, and browse model scores across five evaluation tasks.">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>NarrativeBench Explorer</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="shell masthead">
+    <a class="wordmark" href="#explore">NarrativeBench</a>
+    <nav aria-label="Main navigation">
+      <a id="nav-explorer" href="#explore" aria-current="page">Explorer</a>
+      <a id="nav-leaderboard" href="#leaderboard">Leaderboard</a>
+      <a href="https://huggingface.co/datasets/jhu-clsp/narrative-bench">Dataset <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+  <main class="shell" id="main" tabindex="-1">
+    <div id="app-error" role="alert" hidden>
+      <p>The benchmark could not load.</p>
+      <button type="button" id="retry">Try again</button>
+    </div>
+    <noscript><p>The map and leaderboard require JavaScript. <a href="https://huggingface.co/datasets/jhu-clsp/narrative-bench">Open the dataset.</a></p></noscript>
+    <section id="explorer">
+      <div class="intro">
+        <h1>Explore the benchmark</h1>
+        <p>Browse questions about contested topics across languages and compare how models answered.</p>
+      </div>
+      <section class="atlas" aria-labelledby="map-title">
+        <header class="atlas-heading">
+          <h2 id="map-title">Conflict map</h2>
+          <p>Pins show places discussed in the benchmark. Select a topic to browse its queries.</p>
+        </header>
+        <div class="atlas-grid">
+          <div class="map-column">
+            <div id="map" class="map" aria-label="Map of benchmark topics">
+              <canvas id="world" aria-hidden="true"></canvas>
+              <div id="markers" class="markers"></div>
+              <div class="zoom" role="group" aria-label="Map zoom">
+                <button type="button" id="zoom-in" aria-label="Zoom in" disabled>+</button>
+                <button type="button" id="zoom-out" aria-label="Zoom out" disabled>−</button>
+              </div>
+              <div id="cluster" class="cluster-menu" hidden></div>
+              <p id="map-error" class="map-error" hidden>The map is unavailable. Use the topic menu to browse queries.</p>
+              <a class="map-credit" href="https://www.naturalearthdata.com/">Natural Earth</a>
+            </div>
+          </div>
+          <div class="query-panel">
+            <label for="topic">Topic</label>
+            <select id="topic" disabled><option>Loading topics…</option></select>
+            <label for="language">Query language</label>
+            <select id="language" disabled><option>Loading languages…</option></select>
+            <div class="query-heading">
+              <h3 id="query-title">Select a query</h3>
+              <span id="query-count"></span>
+            </div>
+            <p id="query-status" class="muted" role="status">Loading queries…</p>
+            <div id="queries" class="query-list" role="group" aria-labelledby="query-title" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="answers" aria-labelledby="answer-title">
+        <div class="section-heading">
+          <h2 id="answer-title">Model answers</h2>
+          <div class="task-field">
+            <label for="task">Evaluation task</label>
+            <select id="task" disabled><option>Select a query</option></select>
+          </div>
+        </div>
+        <p id="answer-question" class="answer-question" dir="auto" hidden></p>
+        <div id="case-details" hidden>
+          <details class="case-details">
+            <summary>Evaluation prompt and sources</summary>
+            <div id="case-context"></div>
+            <div id="case-sources"></div>
+          </details>
+        </div>
+        <p id="answer-status" class="muted" role="status">Loading answers…</p>
+        <div id="answer-grid" class="answer-grid" hidden>
+          <article class="answer">
+            <div class="answer-controls">
+              <label for="left-model">Model A</label>
+              <select id="left-model"></select>
+            </div>
+            <div id="left-answer" class="answer-content" aria-live="polite"></div>
+          </article>
+          <article class="answer">
+            <div class="answer-controls">
+              <label for="right-model">Model B</label>
+              <select id="right-model"></select>
+            </div>
+            <div id="right-answer" class="answer-content" aria-live="polite"></div>
+          </article>
+        </div>
+      </section>
+    </section>
+
+    <section id="leaderboard" hidden>
+      <div class="intro">
+        <h1>Leaderboard</h1>
+        <p>Compare the released model configurations by evaluation task.</p>
+      </div>
+      <div class="ranking-controls">
+        <label for="metric">Rank by</label>
+        <select id="metric" disabled></select>
+      </div>
+      <p id="ranking-status" class="muted" role="status">Loading scores…</p>
+      <div id="table-scroll" class="table-scroll" tabindex="0" role="region" aria-label="Model scores" hidden>
+        <table>
+          <caption class="sr-only">Mean language-gated score by task, in percent</caption>
+          <thead id="score-head"></thead>
+          <tbody id="score-rows"></tbody>
+        </table>
+      </div>
+      <p id="score-note" class="score-note muted" hidden></p>
+      <details class="score-method">
+        <summary>How the scores work</summary>
+        <p>Narrative Inclusion and Narrative Exclusion use narrative F1. Missing Narrative Identification, Baseline Prompt, and Diverse Prompt use narrative recall. The benchmark uses cited document IDs to score coverage of the target narratives. Answers classified as different-language or mixed-language receive zero. Higher scores indicate stronger performance on the selected task. Displayed ties share a rank.</p>
+        <p><a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026/blob/main/EVALUATION.md">Evaluation documentation</a></p>
+      </details>
+    </section>
+  </main>
+  <footer class="shell footer">
+    <p>NarrativeBench · Sharma, Marchisio, Murray, and Xiao (2026)</p>
+    <div>
+      <a href="https://arxiv.org/abs/2611.12750">Paper</a>
+      <a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026">GitHub</a>
+      <a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026/blob/main/LICENSE_NOTICE.md">Licensing</a>
+    </div>
+  </footer>
+</body>
+</html>

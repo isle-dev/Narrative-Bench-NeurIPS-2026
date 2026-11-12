@@ -1,0 +1,12 @@
+{
+  "repo": "jhu-clsp/narrative-bench",
+  "revision": "ce3c17f3bf9c9e13d7ede4cc21af4a5d2e019955",
+  "sha256": {
+    "data/documents.parquet": "3224f96d2591957e03a34f0d2447bdf34b71dd99636b4372fea58aaa58103b2e",
+    "data/evaluation.parquet": "ec10cfdd3ff74c6c10172e71cdd13ac275eff054b2a0eca9e86d0b45803ae352",
+    "data/queries.parquet": "dcd024cd618962520fcd636364f1cc5d46309be6ab798e85baf34fff059f5eb0",
+    "data/responses.parquet": "1daa3babd0715d1d69d825675f16d0d2e34bf7a8b0e97fec9cd63492669f318b",
+    "languages.json": "a1f436b2807b1f327afd6a0f89cd61fcdab0cae1ec03b9aabacd9fafa3afb2de",
+    "models.json": "07035cd694f6625388fddc3dd28d846d22b0352ad7482730e7b5f39e17c0d431"
+  }
+}
