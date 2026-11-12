@@ -3,11 +3,11 @@ import { filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOm
 import { parseRoute, queryLanguages, queryScrollState, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
-  NI: ['Narrative Inclusion', 'NI F1'],
-  NE: ['Narrative Exclusion', 'NE F1'],
-  MNI: ['Missing Narrative Identification', 'MNI recall'],
-  BP: ['Baseline Prompt', 'BP recall'],
-  DP: ['Diverse Prompt', 'DP recall'],
+  NI: 'Narrative inclusion',
+  NE: 'Narrative exclusion',
+  MNI: 'Missing narrative identification',
+  BP: 'Baseline prompt',
+  DP: 'Diverse prompt',
 };
 const LANGUAGE_STATUS = {
   same: 'Passed query-language check',
@@ -31,8 +31,9 @@ let paper;
 let matrix;
 let matrixKey;
 let rankingKey;
+let ranking;
 let sourceKey;
-let paperSort = 'paper';
+let paperSort = 'ranking';
 let catalog;
 let map;
 let mapSelection;
@@ -101,24 +102,28 @@ function sortedTopics() {
 }
 
 function renderPaperResults() {
-  options($('paper-sort'), [['paper', 'Paper order'], ...matrix.columns.map((column, index) => [String(index), column.label])], paperSort);
+  options($('paper-sort'), [
+    ['ranking', 'Follow Rank by'],
+    ['paper', 'Paper order'],
+    ...matrix.columns.map((column, index) => [String(index), column.description]),
+  ], paperSort);
   const table = element('table');
   table.append(element('caption', `Exact scores · ${$('score-scope').textContent}`, 'sr-only'));
   const head = table.createTHead().insertRow();
-  for (const name of ['Model', ...matrix.columns.map(column => `${column.label} (${column.unit})`)]) {
+  for (const name of ['Model', ...matrix.columns.map(column => `${column.description} (${column.unit})`)]) {
     const heading = element('th', name);
     heading.scope = 'col';
     head.append(heading);
   }
   const body = table.createTBody();
-  for (const model of paperResultsRows(matrix, paperSort)) {
+  for (const model of paperResultsRows(matrix, paperSort, ranking)) {
     const row = body.insertRow();
     const name = element('th', model.name);
     name.scope = 'row';
     row.append(name, ...model.cells.map(cell => element('td', cell.display, 'number')));
   }
   $('paper-fallback').replaceChildren(table);
-  plotPaper(matrix, paperSort);
+  plotPaper(matrix, paperSort, ranking);
 }
 
 function renderSourceOmissions(data, pooled, label) {
@@ -185,11 +190,9 @@ async function renderLeaderboard(route, run) {
   const topics = sortedTopics();
   const topic = topics.some(item => item.id === route.topic) ? route.topic : 'all';
   const lang = Object.hasOwn(catalog.languages, route.lang) ? route.lang : 'all';
-  const entries = Object.entries(TASKS);
   const sourceModel = catalog.models.find(model => model.id === route.sourceModel);
   const modelOptions = catalog.models.map(({ id, name }) => [id, name]).sort((a, b) => a[1].localeCompare(b[1]));
   options($('source-model'), [['', 'All model configurations'], ...modelOptions], sourceModel?.id ?? '');
-  options($('metric'), entries.map(([id, [label, short]]) => [id, `${label} (${short})`]), metric);
   options($('rank-topic'), [['all', 'All topics'], ...topics.map(item => [item.id, item.label])], topic);
   options($('rank-language'), [['all', 'All query languages'], ...sortedLanguages()], lang);
   const hash = hashFor({
@@ -207,8 +210,12 @@ async function renderLeaderboard(route, run) {
   if (run !== renderId) return;
   paper = results;
   const slice = slices?.[topic]?.[lang];
+  const measures = paper.columns.filter(column => column.task);
+  const measure = measures.find(column => column.task === metric).description;
+  options($('metric'), measures.map(column => [column.task, column.description]), metric);
 
-  if (matrixKey !== key) {
+  const matrixChanged = matrixKey !== key;
+  if (matrixChanged) {
     const scope = [
       topics.find(item => item.id === topic)?.label ?? 'All topics',
       catalog.languages[lang] ?? 'All query languages',
@@ -217,19 +224,20 @@ async function renderLeaderboard(route, run) {
     $('score-scope').textContent = filtered ? `Filtered · ${scope.join(' · ')}` : 'All topics · All query languages';
     matrix = filtered ? filteredResults(paper, slice) : paper;
     matrixKey = key;
-    renderPaperResults();
   }
 
   const rankKey = `${key}/${metric}`;
-  if (rankingKey !== rankKey) {
+  const rankingChanged = rankingKey !== rankKey;
+  if (rankingChanged) {
     rankingKey = rankKey;
     const selection = sliceRanking(catalog, slices, topic, lang, metric);
-    const ranking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
+    ranking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
     const cases = selection?.counts[metric] ?? 0;
     $('score-note').textContent =
-      `${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model for ${TASKS[metric][0]}`;
-    plotRanking(ranking, TASKS[metric][1], cases);
+      `${measure} · ${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model`;
+    plotRanking(ranking, measure, cases);
   }
+  if (matrixChanged || (rankingChanged && paperSort === 'ranking')) renderPaperResults();
   await updateSourceOmissions(topic, lang, sourceModel, filtered ? slice?.sourceOmissions : omissions, run);
 }
 
@@ -454,7 +462,7 @@ for (const button of document.querySelectorAll('[data-pins]')) {
   $('answer-question').hidden = !query;
 
   const tasks = Object.entries(TASKS).filter(([id]) => query?.cases[lang]?.[id]);
-  options($('task'), tasks.map(([id, [label]]) => [id, label]), task);
+  options($('task'), tasks, task);
   if (!caseId) $('task').append(new Option('No recorded evaluation', ''));
 
   const modelIds = new Set(catalog.models.map(model => model.id));
@@ -551,9 +559,13 @@ $('paper-sort').addEventListener('change', event => {
   paperSort = event.target.value;
   renderPaperResults();
 });
+$('metric').addEventListener('change', event => {
+  paperSort = 'ranking';
+  changeRoute({ metric: event.target.value });
+});
 $('topic').addEventListener('change', event => selectTopic(event.target.value));
 for (const [id, parameter] of [
-  ['language', 'lang'], ['task', 'task'], ['left-model', 'left'], ['right-model', 'right'], ['metric', 'metric'],
+  ['language', 'lang'], ['task', 'task'], ['left-model', 'left'], ['right-model', 'right'],
   ['rank-topic', 'topic'], ['rank-language', 'lang'], ['source-model', 'sourceModel'], ['map-language', 'mapLang'],
 ]) {
   $(id).addEventListener('change', event => changeRoute({ [parameter]: event.target.value || undefined }));

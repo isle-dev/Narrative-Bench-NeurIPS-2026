@@ -469,7 +469,8 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .matrix-header { display: flex; justify-content: space-between; align-items: end; gap: .55rem 1rem; flex-wrap: wrap; }
 .matrix-header h2, #task-ranking-title { color: var(--accent); font-size: clamp(1.6rem, 2.65vw, 2.35rem); }
 .matrix-header p, .matrix-note { color: var(--muted); font-size: .84rem; margin-top: .35rem; }
-.matrix-header select { display: block; min-width: 10rem; }
+.matrix-header select { display: block; min-width: 10rem; max-width: min(24rem, 100%); }
+.matrix-header > div { min-width: 0; }
 .matrix-legend { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem .8rem; margin-top: .92rem; font-size: .78rem; }
 .matrix-legend ul { display: flex; flex-wrap: wrap; gap: .2rem; margin: 0; padding: 0; list-style: none; }
 .matrix-legend li { background: #fff5f0; color: #182135; padding: .2rem .48rem; border: 1px solid #1821351f; }
@@ -478,7 +479,7 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .matrix-legend li:nth-child(4) { background: #fb6a4a; }
 .matrix-legend li:nth-child(5) { background: #cb181d; color: var(--sheet); }
 .matrix-scroll { overflow-x: auto; margin-top: .55rem; position: relative; }
-#paper-matrix { min-width: 1160px; }
+#paper-matrix { min-width: 1340px; }
 #paper-fallback table { min-width: 73rem; }
 #task-ranking { margin-top: 1.05rem; }
 #task-ranking-title { margin-bottom: .4rem; }

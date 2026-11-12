@@ -294,7 +294,7 @@
           </div>
           <div>
             <label for="paper-sort">Sort rows by</label>
-            <select id="paper-sort" disabled><option value="paper">Paper order</option></select>
+            <select id="paper-sort" disabled><option value="ranking">Follow Rank by</option></select>
           </div>
         </header>
         <div class="matrix-legend">
@@ -322,16 +322,16 @@
       <details class="score-method" id="score-method" tabindex="-1" open>
         <summary>How the scores work</summary>
         <dl class="metric-definitions">
-          <div><dt>FC-1 · Narrative inclusion</dt><dd>NI F1 measures how well the answer cites articles associated with the requested narrative while omitting other narratives.</dd></div>
-          <div><dt>FC-2 · Narrative exclusion</dt><dd>NE F1 measures whether the answer covers other relevant narratives while omitting the specified one.</dd></div>
-          <div><dt>FC-3 · Missing narrative identification</dt><dd>MNI recall measures how many missing narratives the model recovers when revising a prior answer.</dd></div>
-          <div><dt>HC-1 · Present diverse narratives</dt><dd>BP and DP recall measure coverage of available narratives under a baseline prompt and a prompt that explicitly requests diversity.</dd></div>
-          <div><dt>HC-2 · Preserve coverage under confirmatory queries</dt><dd>The absolute recall gap compares neutral queries with queries that favor a particular narrative. A smaller gap means more consistent coverage across framings.</dd></div>
-          <div><dt>HC-3 · Provide comparable access across languages</dt><dd>Query and Target gaps compare scores with English for the language of the question and the publication language of the requested narrative, respectively.</dd></div>
+          <div><dt>Narrative inclusion</dt><dd>Narrative inclusion F1 measures how well the answer cites articles associated with the requested narrative while omitting other narratives.</dd></div>
+          <div><dt>Narrative exclusion</dt><dd>Narrative exclusion F1 measures whether the answer covers other relevant narratives while omitting the specified one.</dd></div>
+          <div><dt>Missing narrative identification</dt><dd>Missing narrative identification recall measures how many missing narratives the model recovers when revising a prior answer.</dd></div>
+          <div><dt>Present diverse narratives</dt><dd>Baseline prompt recall and diverse prompt recall measure coverage of available narratives. The diverse prompt explicitly requests narrative diversity.</dd></div>
+          <div><dt>Preserve coverage under confirmatory queries</dt><dd>The absolute recall gap compares neutral queries with queries that favor a particular narrative. A smaller gap means more consistent coverage across framings.</dd></div>
+          <div><dt>Provide comparable access across languages</dt><dd>The query-language score gap compares scores by the language of the question. The target narrative-language score gap compares scores by the publication language of the requested narrative. Both use English as the reference.</dd></div>
         </dl>
         <p>Recall is the share of required narratives covered. F1 balances recall with precision, the share of cited narratives that match the task. Displayed ties share a rank.</p>
-        <p><strong>Language-gated scores.</strong> The scorer checks whether the answer is in the language of the question. Answers identified as different-language or mixed-language receive zero. Answers with an uncertain classification proceed to citation-based scoring. Cited articles can be in any language. LVol counts different-language and mixed-language answers.</p>
-        <p>The unfiltered scores reproduce <a href="https://arxiv.org/pdf/2611.12750v1#page=7" target="_blank" rel="noopener noreferrer">Table 1 in the paper</a>, including standard errors in parentheses. Filtered cells show point estimates. For a selected non-English query language, Query gap compares its mean score with English within the same topic scope. Framing and target-language gaps require cases in both comparison groups.</p>
+        <p><strong>Language-gated scores.</strong> The scorer checks whether the answer is in the language of the question. Answers identified as different-language or mixed-language receive zero. Answers with an uncertain classification proceed to citation-based scoring. Cited articles can be in any language. The language violations column counts different-language and mixed-language answers.</p>
+        <p>The unfiltered scores reproduce <a href="https://arxiv.org/pdf/2611.12750v1#page=7" target="_blank" rel="noopener noreferrer">Table 1 in the paper</a>, including standard errors in parentheses. Filtered cells show point estimates. For a selected non-English query language, the query-language score gap compares its mean score with English within the same topic scope. Framing and target narrative-language gaps require cases in both comparison groups. Score gaps are reported in percentage points.</p>
         <p><a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026/blob/main/EVALUATION.md">Evaluation documentation</a></p>
       </details>
       <section class="source-results" aria-labelledby="source-title">

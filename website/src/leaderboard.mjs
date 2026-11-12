@@ -32,8 +32,12 @@ export function filteredResults(paper, slice) {
   return { ...paper, rows };
 }
 
-export function paperResultsRows(paper, sort) {
+export function paperResultsRows(paper, sort, ranking) {
   if (sort === 'paper') return paper.rows;
+  if (sort === 'ranking') {
+    const rowsById = new Map(paper.rows.map(row => [row.id, row]));
+    return ranking.map(row => rowsById.get(row.id));
+  }
   const index = Number(sort);
   const direction = paper.columns[index].task ? -1 : 1;
   return [...paper.rows].sort((a, b) => {
@@ -44,8 +48,21 @@ export function paperResultsRows(paper, sort) {
   });
 }
 
-export function paperResultsFigure(paper, sort, width) {
-  const rows = paperResultsRows(paper, sort);
+function wrapColumnLabel(label) {
+  const lines = [];
+  let line = '';
+  for (const word of label.split(' ')) {
+    if (line && line.length + word.length + 1 > 16) {
+      lines.push(line);
+      line = '';
+    }
+    line = line ? `${line} ${word}` : word;
+  }
+  return [...lines, line].join('<br>');
+}
+
+export function paperResultsFigure(paper, sort, width, ranking) {
+  const rows = paperResultsRows(paper, sort, ranking);
   const names = rows.map(row => row.name);
   const traces = paper.columns.map((column, index) => {
     const cells = rows.map(row => row.cells[index]);
@@ -65,22 +82,20 @@ export function paperResultsFigure(paper, sort, width) {
     text, x, y, xref: 'x', yref: 'paper', showarrow: false, font: { size },
   });
   const layout = {
-    width, height: rows.length * 31 + 101,
-    margin: { l: 214, r: 16, t: 89, b: 12 },
+    width, height: rows.length * 31 + 120,
+    margin: { l: 214, r: 16, t: 108, b: 12 },
     barmode: 'stack', bargap: .11, showlegend: false, hovermode: 'closest', dragmode: false,
     paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { ...font, size: 12 },
     hoverlabel: { bgcolor: '#002d72', font: { color: '#f8f8fc' }, align: 'left' },
     annotations: [
-      group('<b>Foundational capabilities</b>', 1.5, 1.176, 13),
-      group('<b>Higher-level information-seeking capabilities</b>', 6.5, 1.176, 13),
-      group('<b>Language<br>compliance</b>', 10.5, 1.176, 12),
-      ...[[.5, 'FC-1'], [1.5, 'FC-2'], [2.5, 'FC-3'], [4, 'HC-1'], [5.5, 'HC-2'], [8, 'HC-3']]
-        .map(([x, label]) => group(label, x, 1.124, 11)),
+      group('<b>Foundational capabilities</b>', 1.5, 1.19, 13),
+      group('<b>Higher-level information-seeking capabilities</b>', 6.5, 1.19, 13),
+      group('<b>Language compliance</b>', 10.5, 1.19, 12),
     ],
     xaxis: {
       side: 'top', range: [0, paper.columns.length], tickmode: 'array', fixedrange: true,
       tickvals: paper.columns.map((_, index) => index + .5),
-      ticktext: paper.columns.map(column => `<b>${column.label}</b><br>(${column.unit})`),
+      ticktext: paper.columns.map(column => `<b>${wrapColumnLabel(column.description)}</b><br>(${column.unit})`),
       tickfont: { size: 11 }, showgrid: false, zeroline: false,
     },
     yaxis: {
@@ -161,9 +176,9 @@ function mountTablePlot(host, fallback, status, figure, wave) {
 
 export function mountPaperResults(host, fallback, status) {
   const update = mountTablePlot(host, fallback, status,
-    ({ paper, sort }, width) => paperResultsFigure(paper, sort, width),
+    ({ paper, sort, ranking }, width) => paperResultsFigure(paper, sort, width, ranking),
     ['.barlayer .trace', '.bartext']);
-  return (paper, sort) => update({ paper, sort });
+  return (paper, sort, ranking) => update({ paper, sort, ranking });
 }
 
 function omissionRate(counts) {
