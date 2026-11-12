@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <title>NarrativeBench Explorer</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="./favicon.svg?v=2" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
   <script type="module" src="./app.mjs"></script>
 </head>
@@ -69,6 +69,20 @@
         </div>
         <img class="hero-illustration" src="./assets/narrative-atlas-blue.webp" width="1080" height="720" alt="">
       </header>
+      <a class="results-preview" id="results-preview-link" href="#leaderboard" aria-labelledby="results-preview-action results-preview-title">
+        <div class="results-preview-copy">
+          <h2 id="results-preview-title">Models limit users’ <mark>agency</mark> to navigate narratives</h2>
+          <p>Models struggle to follow requests to include, exclude, or recover specific narratives. An answer can appear to follow the request while leaving relevant narratives out, creating an <strong>illusion of control</strong>.</p>
+          <span class="results-preview-action" id="results-preview-action">View full results <span aria-hidden="true">→</span></span>
+        </div>
+        <table id="results-preview-table" hidden>
+          <caption>Best scores on the three foundational tasks</caption>
+          <thead>
+            <tr><th scope="col">Measure</th><th scope="col">Model</th><th scope="col" class="number">Score</th></tr>
+          </thead>
+          <tbody id="results-preview-rows"></tbody>
+        </table>
+      </a>
       <section class="capability-overview" aria-label="Information-seeking capabilities and risks">
         <section class="capability-group foundation" aria-labelledby="foundation-title">
           <h2 id="foundation-title">Foundational capabilities</h2>
@@ -122,20 +136,6 @@
           </ul>
         </section>
       </section>
-      <a class="results-preview" id="results-preview-link" href="#leaderboard" aria-labelledby="results-preview-action results-preview-title">
-        <div class="results-preview-copy">
-          <h2 id="results-preview-title">Models limit users’ <mark>agency</mark> to navigate narratives</h2>
-          <p>Models struggle to follow requests to include, exclude, or recover specific narratives. An answer can appear to follow the request while leaving relevant narratives out, creating an <strong>illusion of control</strong>.</p>
-          <span class="results-preview-action" id="results-preview-action">View full results <span aria-hidden="true">→</span></span>
-        </div>
-        <table id="results-preview-table" hidden>
-          <caption>Best scores on the three foundational tasks</caption>
-          <thead>
-            <tr><th scope="col">Measure</th><th scope="col">Model</th><th scope="col" class="number">Score</th></tr>
-          </thead>
-          <tbody id="results-preview-rows"></tbody>
-        </table>
-      </a>
       <div id="globe-section" class="intro explore-intro" tabindex="-1">
         <h2>Explore the benchmark</h2>
         <div class="coverage-control">

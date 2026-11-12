@@ -117,6 +117,15 @@ class BuildTests(unittest.TestCase):
         self.assertIn('<details class="case-details" open>', page)
         self.assertIn('eprint={2611.12750}', (source / 'narrativebench.bib').read_text())
 
+    def test_front_page_puts_the_main_finding_between_the_hero_and_capabilities(self):
+        page = (build.HERE / "src/index.html").read_text()
+        hero_end = page.index("</header>", page.index('<header class="research-hero">')) + len("</header>")
+        capabilities = page.index('<section class="capability-overview"')
+        finding = page[hero_end:capabilities].strip()
+        self.assertTrue(finding.startswith('<a class="results-preview"'))
+        self.assertIn("illusion of control", finding)
+        self.assertIn('id="results-preview-table"', finding)
+
     def test_map_regions_are_distinct_and_valid(self):
         self.assertEqual(build.topic_regions({"regions": [["Iran", 53, 32], ["U.S.", -98, 39]]}), [
             {"label": "Iran", "location": [53, 32]}, {"label": "U.S.", "location": [-98, 39]},
