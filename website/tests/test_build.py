@@ -41,19 +41,37 @@ class BuildTests(unittest.TestCase):
             ("tigray", "ar", "NI", (0.5, 0.5)),
             ("tigray", "ar", "DP", (0.25, 0)),
         ]
+        documents = {"D0001": {"narrative_id": "target", "publication_language": "English"}}
+        cases = {
+            str(i): {"task": task, "query_language": lang, "query_type": "neutral",
+                     "document_ids": ["D0001"], "target_narrative_id": "target"}
+            for i, (_, lang, task, _) in enumerate(scores)
+        }
         rows = [
-            {"topic": topic, "query_language": lang, "model_id": model,
-             "task": task, "score": score, "language_status": "same" if score else "no_answer"}
-            for topic, lang, task, pair in scores
+            {"topic": topic, "query_language": lang, "model_id": model, "case_id": str(i),
+             "task": task, "score": score, "language_status": "same" if score else "different",
+             "source_omissions": int(not score), "source_opportunities": 1}
+            for i, (topic, lang, task, pair) in enumerate(scores)
             for model, score in zip(("a", "b"), pair)
         ]
-        slices = build.ranking_slices(rows)
-        self.assertEqual(slices["gaza"]["ar"], {
-            "counts": {"NI": 1}, "scores": {"a": {"NI": 0}, "b": {"NI": 1}},
-        })
+        slices = build.ranking_slices(rows, cases, documents)
+        arabic_gaza = slices["gaza"]["ar"]
+        self.assertEqual(arabic_gaza["counts"], {"NI": 1})
+        self.assertEqual(arabic_gaza["scores"], {"a": {"NI": 0}, "b": {"NI": 1}})
+        self.assertEqual(arabic_gaza["diagnostics"]["a"]["query_language_gap_pp"], 100)
+        self.assertEqual(arabic_gaza["diagnostics"]["a"]["language_violations"], 1)
+        self.assertIsNone(arabic_gaza["diagnostics"]["a"]["target_language_gap_pp"])
+        self.assertIsNone(slices["gaza"]["en"]["diagnostics"]["a"]["query_language_gap_pp"])
         self.assertEqual(slices["gaza"]["all"]["scores"]["a"]["NI"], 0.5)
         self.assertEqual(slices["all"]["ar"]["counts"], {"NI": 2, "DP": 1})
+        self.assertEqual(slices["all"]["ar"]["diagnostics"]["b"]["dp_omission_pct"], 100)
+        self.assertIsNone(slices["tigray"]["ar"]["diagnostics"]["a"]["query_language_gap_pp"])
         self.assertNotIn("en", slices["tigray"])
+
+    def test_source_omission_counts_only_valid_citations_and_unique_languages(self):
+        context = {"D0001": "English", "D0002": "English", "D0003": "French", "D0004": "Arabic"}
+        self.assertEqual(build.source_omission(context, "[D0001][D0002] D1234"), (2, 3))
+        self.assertEqual(build.source_omission(context, ""), (3, 3))
 
     def test_map_query_index_records_dataset_and_evaluated_languages(self):
         rows = {
@@ -80,7 +98,8 @@ class BuildTests(unittest.TestCase):
                       "Provide comparable access across languages", "Filter bubbles", "Echo chambers",
                       "Linguistic disparities"):
             self.assertIn(label, page)
-        self.assertIn('<section class="score-method" aria-labelledby="scores-title" id="slice-scores" hidden>', page)
+        self.assertIn('id="paper-matrix"', page)
+        self.assertNotIn('id="slice-scores"', page)
         self.assertIn('<details class="score-method" open>', page)
         self.assertIn('<details class="case-details" open>', page)
         self.assertIn('eprint={2611.12750}', (source / 'narrativebench.bib').read_text())

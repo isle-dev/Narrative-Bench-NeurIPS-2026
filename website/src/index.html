@@ -237,7 +237,7 @@
         <header class="matrix-header">
           <div>
             <h2 id="paper-results-title">Exact scores</h2>
-            <p><a href="https://arxiv.org/pdf/2611.12750v1#page=7">Table 1</a> · 15 model configurations · 11 metrics</p>
+            <p><a href="https://arxiv.org/pdf/2611.12750v1#page=7">Table 1</a> · <span id="score-scope">All topics · All query languages</span></p>
           </div>
           <div>
             <label for="paper-sort">Sort rows by</label>
@@ -251,35 +251,25 @@
           </ul>
         </div>
         <p id="paper-status" class="muted" role="status">Loading exact scores…</p>
-        <div class="matrix-scroll" tabindex="0" role="region" aria-label="Published scores, scroll horizontally for more columns">
+        <div class="matrix-scroll" tabindex="0" role="region" aria-label="Exact scores, scroll horizontally for more columns">
           <div id="paper-matrix" aria-hidden="true"></div>
-          <div id="paper-fallback"></div>
+          <div id="paper-fallback" class="sr-only"></div>
         </div>
-        <p class="matrix-note">Parentheses show standard errors. Colors indicate distance from the ideal relative to the worst score observed in each column.</p>
+        <p class="matrix-note">Colors use the worst score in each column for the current selection. A dash means a metric is unavailable for that selection.</p>
       </section>
       <section id="task-ranking" aria-labelledby="task-ranking-title">
         <h2 id="task-ranking-title">Task rankings</h2>
-        <p id="score-note" class="score-note muted" hidden></p>
+        <p id="score-note" class="score-note muted" role="status"></p>
         <div id="plotly.js-style-global" class="no-inline-styles" hidden></div>
         <div class="plot-frame">
           <p id="ranking-status" class="muted" role="status">Loading scores…</p>
-          <div id="rank-plot" role="img" aria-label="Model ranking chart. Exact values are also available in the scores tables."></div>
+          <div id="rank-plot" role="img" aria-label="Model ranking chart. Exact values are also available in the Exact scores table."></div>
         </div>
-        <section class="score-method" aria-labelledby="scores-title" id="slice-scores" hidden>
-          <h2 id="scores-title">Exact scores</h2>
-          <div id="table-scroll" class="table-scroll" tabindex="0" role="region" aria-label="Model scores" hidden>
-            <table>
-              <caption class="sr-only">Mean language-gated score by task, in percent</caption>
-              <thead id="score-head"></thead>
-              <tbody id="score-rows"></tbody>
-            </table>
-          </div>
-        </section>
       </section>
       <details class="score-method" open>
         <summary>How the scores work</summary>
         <p>Narrative Inclusion and Narrative Exclusion use narrative F1. Missing Narrative Identification, Baseline Prompt, and Diverse Prompt use narrative recall. The benchmark uses cited document IDs to score coverage of the target narratives. Answers classified as different-language or mixed-language receive zero. Higher scores indicate stronger performance on the selected task. Displayed ties share a rank.</p>
-        <p>The unfiltered scores match <a href="https://arxiv.org/pdf/2611.12750v1#page=7">Table 1 in the paper</a>. Topic and language filters recalculate the same metrics over the selected evaluation cases.</p>
+        <p>The unfiltered scores reproduce <a href="https://arxiv.org/pdf/2611.12750v1#page=7">Table 1 in the paper</a>, including standard errors in parentheses. Filtered cells show point estimates. For a selected non-English query language, Query gap compares its mean score with English within the same topic scope. Framing and target-language gaps require cases in both comparison groups.</p>
         <p><a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026/blob/main/EVALUATION.md">Evaluation documentation</a></p>
       </details>
     </section>

@@ -49,42 +49,54 @@
       "description": "Absolute recall gap under confirmatory queries",
       "unit": "pp",
       "capability": "HC-2",
-      "task": null
+      "task": null,
+      "diagnostic": "confirmatory_absolute_gap_pp",
+      "decimals": 2
     },
     {
       "label": "Query gap",
-      "description": "Query-language recall gap",
+      "description": "Query-language score gap from English",
       "unit": "pp",
       "capability": "HC-3",
-      "task": null
+      "task": null,
+      "diagnostic": "query_language_gap_pp",
+      "decimals": 1
     },
     {
       "label": "Target gap",
-      "description": "Target narrative recall gap",
+      "description": "Target narrative-language score gap from English",
       "unit": "pp",
       "capability": "HC-3",
-      "task": null
+      "task": null,
+      "diagnostic": "target_language_gap_pp",
+      "decimals": 1
     },
     {
       "label": "BP omit.",
       "description": "Baseline prompt omission rate",
       "unit": "%",
       "capability": "HC-3",
-      "task": null
+      "task": null,
+      "diagnostic": "bp_omission_pct",
+      "decimals": 1
     },
     {
       "label": "DP omit.",
       "description": "Diverse prompt omission rate",
       "unit": "%",
       "capability": "HC-3",
-      "task": null
+      "task": null,
+      "diagnostic": "dp_omission_pct",
+      "decimals": 1
     },
     {
       "label": "LVol",
       "description": "Language violations",
       "unit": "count",
       "capability": "",
-      "task": null
+      "task": null,
+      "diagnostic": "language_violations",
+      "decimals": 0
     }
   ],
   "rows": [
