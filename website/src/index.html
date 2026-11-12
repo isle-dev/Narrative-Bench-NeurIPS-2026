@@ -40,7 +40,7 @@
           <header class="atlas-heading">
             <h2 id="map-title">Conflict map</h2>
             <div class="topic-field">
-              <label for="topic">Topic</label>
+              <label for="topic">Focus topic</label>
               <select id="topic" disabled><option>Loading topics…</option></select>
             </div>
           </header>
@@ -49,11 +49,15 @@
             <div id="markers" class="markers"></div>
             <div id="cluster" class="cluster-menu" role="group" aria-label="Nearby topics" hidden></div>
             <p id="map-error" class="map-error" hidden>The map is unavailable. Use the topic menu to browse queries.</p>
-            <span id="map-instructions" class="sr-only">Drag or use the arrow keys to rotate the globe. Select a pin to open the topic.</span>
+            <span id="map-instructions" class="sr-only">Drag or use the arrow keys to rotate the globe. Circle pins open topics. Diamond pins open evaluated queries.</span>
           </div>
           <footer class="atlas-footer">
             <div>
-              <p>Drag to rotate. Pins mark places discussed.</p>
+              <div class="map-legend" aria-label="Map legend">
+                <span><i class="legend-topic" aria-hidden="true"></i> Topic</span>
+                <span><i class="legend-query" aria-hidden="true"></i> Evaluated query</span>
+              </div>
+              <p id="map-note">Drag to rotate. Queries are grouped around their topic.</p>
               <a class="map-credit" href="https://www.naturalearthdata.com/">Natural Earth</a>
             </div>
             <div class="zoom" role="group" aria-label="Globe controls">
@@ -122,15 +126,25 @@
         <p>Compare model scores across the benchmark’s five tasks.</p>
       </div>
       <div class="ranking-controls">
-        <label for="metric">Rank by</label>
-        <select id="metric" disabled></select>
+        <div>
+          <label for="metric">Rank by</label>
+          <select id="metric" disabled></select>
+        </div>
+        <div>
+          <label for="rank-topic">Topic or conflict</label>
+          <select id="rank-topic" disabled></select>
+        </div>
+        <div>
+          <label for="rank-language">Query language</label>
+          <select id="rank-language" disabled></select>
+        </div>
       </div>
+      <p id="score-note" class="score-note muted" hidden></p>
       <div id="plotly.js-style-global" class="no-inline-styles" hidden></div>
       <div class="plot-frame">
         <p id="ranking-status" class="muted" role="status">Loading scores…</p>
         <div id="rank-plot" role="img" aria-label="Model ranking chart. All values are available in the Exact scores table."></div>
       </div>
-      <p id="score-note" class="score-note muted" hidden></p>
       <details class="score-method">
         <summary>Exact scores</summary>
         <div id="table-scroll" class="table-scroll" tabindex="0" role="region" aria-label="Model scores" hidden>
@@ -144,6 +158,7 @@
       <details class="score-method">
         <summary>How the scores work</summary>
         <p>Narrative Inclusion and Narrative Exclusion use narrative F1. Missing Narrative Identification, Baseline Prompt, and Diverse Prompt use narrative recall. The benchmark uses cited document IDs to score coverage of the target narratives. Answers classified as different-language or mixed-language receive zero. Higher scores indicate stronger performance on the selected task. Displayed ties share a rank.</p>
+        <p>The unfiltered scores match <a href="https://arxiv.org/pdf/2611.12750v1#page=7">Table 1 in the paper</a>. Topic and language filters recalculate the same metrics over the selected evaluation cases.</p>
         <p><a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026/blob/main/EVALUATION.md">Evaluation documentation</a></p>
       </details>
     </section>

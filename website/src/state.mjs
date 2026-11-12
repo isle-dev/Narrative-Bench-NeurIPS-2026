@@ -4,25 +4,28 @@ const EXPLORER_PARAMS = ['topic', 'lang', 'query', 'task', 'left', 'right'];
 export function parseRoute(hash) {
   const [name, search] = hash.slice(1).split('?');
   const params = new URLSearchParams(search);
-  if (name === 'leaderboard') {
-    return params.has('metric') ? { page: 'leaderboard', metric: params.get('metric') } : { page: 'leaderboard' };
-  }
-  const route = { page: 'explorer' };
-  if (name === 'explore') {
-    for (const key of EXPLORER_PARAMS) {
-      if (params.has(key)) route[key] = params.get(key);
-    }
+  const route = { page: name === 'leaderboard' ? 'leaderboard' : 'explorer' };
+  const keys = name === 'leaderboard' ? ['metric', 'topic', 'lang'] : name === 'explore' ? EXPLORER_PARAMS : [];
+  for (const key of keys) {
+    if (params.has(key)) route[key] = params.get(key);
   }
   return route;
 }
 
+function hasEvaluation(query, lang) {
+  return Boolean(query.translations[lang] && Object.values(query.cases[lang] ?? {}).some(Boolean));
+}
+
 export function queryChoices(queries, lang) {
-  return queries.filter(query => query.translations[lang])
-    .sort((a, b) => Number(Boolean(b.cases[lang])) - Number(Boolean(a.cases[lang])));
+  return queries.filter(query => hasEvaluation(query, lang));
+}
+
+export function evaluatedLanguages(queries) {
+  return new Set(queries.flatMap(query => Object.keys(query.cases).filter(lang => hasEvaluation(query, lang))));
 }
 
 export function resolveSelection(queries, route) {
-  const languages = new Set(queries.flatMap(query => Object.keys(query.translations)));
+  const languages = evaluatedLanguages(queries);
   const lang = languages.has(route.lang) ? route.lang : languages.has('en') ? 'en' : languages.values().next().value;
   const choices = queryChoices(queries, lang);
   const query = choices.find(item => item.id === route.query) ?? choices[0];
@@ -40,4 +43,14 @@ export function rankedRows(models, metric) {
       ? rows.findIndex(other => other.value === row.value) + 1
       : index + 1,
   }));
+}
+
+export function sliceRanking(catalog, slices, topic, lang, metric) {
+  if (topic === 'all' && lang === 'all') {
+    return { rows: rankedRows(catalog.models, metric), counts: catalog.counts.tasks };
+  }
+  const slice = slices?.[topic]?.[lang];
+  if (!slice?.counts[metric]) return null;
+  const models = catalog.models.map(model => ({ ...model, scores: slice.scores[model.id] }));
+  return { rows: rankedRows(models, metric), counts: slice.counts };
 }

@@ -1,6 +1,6 @@
 import { formatAnswer } from './answer-format.mjs';
 import { mountLeaderboardPlot } from './leaderboard.mjs';
-import { parseRoute, rankedRows, resolveSelection } from './state.mjs';
+import { evaluatedLanguages, parseRoute, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
   NI: ['Narrative Inclusion', 'NI F1'],
@@ -26,6 +26,7 @@ const currentResponses = new WeakMap();
 const plotRanking = mountLeaderboardPlot($('rank-plot'), $('ranking-status'));
 let catalog;
 let map;
+let mapSelection;
 let renderId = 0;
 let lastPage;
 let queryListKey;
@@ -74,17 +75,56 @@ function changeRoute(changes) {
 }
 
 function selectTopic(topic, fromGlobe = false) {
-  if (parseRoute(location.hash).topic === topic) return;
-  changeRoute({ topic, query: undefined });
+  if (parseRoute(location.hash).topic === topic) map?.setSelection(mapSelection, true);
+  else changeRoute({ topic, query: undefined });
   if (fromGlobe && matchMedia('(max-width: 850px)').matches) {
     $('topic-title').scrollIntoView({ block: 'start' });
   }
 }
 
-function renderLeaderboard(route) {
+function sortedLanguages() {
+  return Object.entries(catalog.languages).sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+function sortedTopics() {
+  return [...catalog.topics].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+async function renderLeaderboard(route, run) {
   const metric = Object.hasOwn(TASKS, route.metric) ? route.metric : 'NI';
+  const topics = sortedTopics();
+  const topic = topics.some(item => item.id === route.topic) ? route.topic : 'all';
+  const lang = Object.hasOwn(catalog.languages, route.lang) ? route.lang : 'all';
   const entries = Object.entries(TASKS);
   options($('metric'), entries.map(([id, [label, short]]) => [id, `${label} (${short})`]), metric);
+  options($('rank-topic'), [['all', 'All topics'], ...topics.map(item => [item.id, item.label])], topic);
+  options($('rank-language'), [['all', 'All query languages'], ...sortedLanguages()], lang);
+  const hash = hashFor({
+    page: 'leaderboard', metric: metric === 'NI' ? undefined : metric,
+    topic: topic === 'all' ? undefined : topic, lang: lang === 'all' ? undefined : lang,
+  });
+  history.replaceState(null, '', hash);
+  $('nav-leaderboard').href = hash;
+  $('score-note').hidden = true;
+  $('table-scroll').hidden = true;
+  plotRanking.clear('Loading scores…');
+
+  let slices;
+  if (topic !== 'all' || lang !== 'all') {
+    try {
+      slices = await data('rankings');
+    } catch (error) {
+      if (run === renderId) plotRanking.clear('Filtered scores could not load.');
+      throw error;
+    }
+  }
+  if (run !== renderId) return;
+  const selection = sliceRanking(catalog, slices, topic, lang, metric);
+  if (!selection) {
+    plotRanking.clear('No evaluated cases for these filters.');
+    return;
+  }
+  const { rows: ranking, counts } = selection;
   const head = element('tr');
   for (const name of ['Rank', 'Model configuration']) {
     const cell = element('th', name);
@@ -99,23 +139,23 @@ function renderLeaderboard(route) {
     head.append(cell);
   }
   $('score-head').replaceChildren(head);
-  const ranking = rankedRows(catalog.models, metric);
   const rows = ranking.map(model => {
     const row = element('tr');
     const name = element('th', model.name);
     name.scope = 'row';
     row.append(element('td', String(model.rank)), name);
     for (const [id] of entries) {
-      row.append(element('td', percent(model.scores[id]), id === metric ? 'number active-metric' : 'number'));
+      row.append(element('td', counts[id] ? percent(model.scores[id]) : '—', id === metric ? 'number active-metric' : 'number'));
     }
     return row;
   });
   $('score-rows').replaceChildren(...rows);
+  const cases = counts[metric];
   $('score-note').textContent =
-    `${number.format(catalog.models.length)} model configurations · ${number.format(catalog.counts.tasks[metric])} cases per model for ${TASKS[metric][0]}`;
+    `${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model for ${TASKS[metric][0]}`;
   $('score-note').hidden = false;
   $('table-scroll').hidden = false;
-  plotRanking(ranking, TASKS[metric][1], catalog.counts.tasks[metric]);
+  plotRanking(ranking, TASKS[metric][1], cases);
 }
 
 function renderQueries(topic, selection) {
@@ -145,9 +185,9 @@ function renderQueries(topic, selection) {
     const top = active.offsetTop;
     if (top < list.scrollTop || top + active.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = top;
   }
-  $('query-count').textContent = choices.length ? `${number.format(choices.length)} queries` : '';
+  $('query-count').textContent = choices.length ? `${number.format(choices.length)} ${choices.length === 1 ? 'query' : 'queries'}` : '';
   $('query-status').hidden = Boolean(choices.length);
-  $('query-status').textContent = 'No queries are available in this language.';
+  $('query-status').textContent = 'No evaluated queries for this topic.';
 }
 
 function setAnswerStatus(message, retry) {
@@ -221,12 +261,18 @@ function renderCaseDetails(item, sources) {
 }
 
 async function renderExplorer(route, run) {
-  const sortedTopics = [...catalog.topics].sort((a, b) => a.label.localeCompare(b.label));
-  const topic = sortedTopics.find(item => item.id === route.topic)
-    ?? sortedTopics.find(item => item.id === DEFAULT_TOPIC) ?? sortedTopics[0];
-  options($('topic'), sortedTopics.map(item => [item.id, item.label]), topic.id);
+  const topics = sortedTopics();
+  const topic = topics.find(item => item.id === route.topic)
+    ?? topics.find(item => item.id === DEFAULT_TOPIC) ?? topics[0];
+  options($('topic'), topics.map(item => [item.id, item.label]), topic.id);
   if ($('topic-title').textContent !== topic.label) $('topic-title').textContent = topic.label;
-  map?.select(topic.id);
+  $('map-note').textContent = topic.point
+    ? 'Drag to rotate. Queries are grouped around their topic.'
+    : 'This topic spans regions. Explore its queries in the topic panel.';
+  if (mapSelection?.topic !== topic.id) {
+    mapSelection = { topic: topic.id, queries: [] };
+    map?.setSelection(mapSelection);
+  }
 
   if (!queryListKey?.startsWith(`${topic.id}/`)) {
     $('language').disabled = true;
@@ -244,11 +290,17 @@ async function renderExplorer(route, run) {
   if (renderId !== run) return;
   const selection = resolveSelection(questions, route);
   const { lang, query, task, caseId } = selection;
-  const availableLanguages = new Set(questions.flatMap(item => Object.keys(item.translations)));
-  const languages = Object.entries(catalog.languages).filter(([id]) => availableLanguages.has(id))
-    .sort((a, b) => a[1].localeCompare(b[1]));
+  const availableLanguages = evaluatedLanguages(questions);
+  const languages = sortedLanguages().filter(([id]) => availableLanguages.has(id));
   options($('language'), languages, lang);
   renderQueries(topic, selection);
+  if (mapSelection.lang !== lang || mapSelection.queryId !== query?.id) {
+    mapSelection = {
+      topic: topic.id, lang, queryId: query?.id,
+      queries: selection.choices.map(item => ({ id: item.id, text: item.translations[lang] })),
+    };
+    map?.setSelection(mapSelection);
+  }
   $('answer-question').textContent = query?.translations[lang] ?? '';
   $('answer-question').lang = lang ?? '';
   $('answer-question').hidden = !query;
@@ -268,7 +320,7 @@ async function renderExplorer(route, run) {
   if (caseId !== loadedCase) {
     $('answer-grid').hidden = true;
     $('case-details').hidden = true;
-    setAnswerStatus(caseId ? 'Loading recorded answers…' : 'This query and language combination has no recorded answers.');
+    setAnswerStatus(caseId ? 'Loading recorded answers…' : '');
   }
   if (!caseId) return;
   let item;
@@ -314,7 +366,7 @@ async function render() {
     catalog ??= await data('catalog');
     if (run !== renderId) return;
     if (explorer) await renderExplorer(route, run);
-    else renderLeaderboard(route);
+    else await renderLeaderboard(route, run);
   } catch {
     if (run === renderId) $('app-error').hidden = false;
   }
@@ -327,6 +379,7 @@ document.querySelector('.skip-link').addEventListener('click', event => {
 $('topic').addEventListener('change', event => selectTopic(event.target.value));
 for (const [id, parameter] of [
   ['language', 'lang'], ['task', 'task'], ['left-model', 'left'], ['right-model', 'right'], ['metric', 'metric'],
+  ['rank-topic', 'topic'], ['rank-language', 'lang'],
 ]) {
   $(id).addEventListener('change', event => changeRoute({ [parameter]: event.target.value }));
 }
@@ -335,8 +388,11 @@ window.addEventListener('hashchange', render);
 await render();
 try {
   const [{ mountGlobe }, geometry, index] = await Promise.all([import('./globe.mjs'), data('map'), data('catalog')]);
-  map = mountGlobe(geometry, index.topics, id => selectTopic(id, true));
-  map.select(parseRoute(location.hash).topic);
+  map = mountGlobe(geometry, index.topics, id => selectTopic(id, true), id => {
+    changeRoute({ query: id });
+    if (matchMedia('(max-width: 850px)').matches) $('query-title').scrollIntoView({ block: 'start' });
+  });
+  if (mapSelection) map.setSelection(mapSelection);
 } catch {
   $('map-error').hidden = false;
 }

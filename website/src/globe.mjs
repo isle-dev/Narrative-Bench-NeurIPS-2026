@@ -1,12 +1,12 @@
 import './vendor/d3-array.js';
 import './vendor/d3-geo.js';
-import { clusterPins, globeView, unproject } from './globe-state.mjs';
+import { clusterPins, globeView, queryPinPositions, unproject } from './globe-state.mjs';
 
 const DEFAULT_VIEW = globeView(23, 20, 1);
 const SPHERE = { type: 'Sphere' };
 const LIMB = Math.PI * .475;
 
-export function mountGlobe(countries, topics, selectTopic) {
+export function mountGlobe(countries, topics, selectTopic, selectQuery) {
   const map = document.querySelector('#map');
   const canvas = document.querySelector('#world');
   const markers = document.querySelector('#markers');
@@ -31,11 +31,10 @@ export function mountGlobe(countries, topics, selectTopic) {
   const placedTopics = topics.filter(topic => topic.point)
     .map(topic => ({ ...topic, location: unproject(topic.point) }));
   let view = DEFAULT_VIEW;
-  let selected;
+  let selection;
   let drag;
   let frame;
   let expanded;
-  let hasDrawn = false;
 
   function closeMenu(restoreFocus = false) {
     menu.hidden = true;
@@ -54,7 +53,7 @@ export function mountGlobe(countries, topics, selectTopic) {
       const item = document.createElement('button');
       item.type = 'button';
       item.textContent = topic.label;
-      item.setAttribute('aria-pressed', String(topic.id === selected));
+      item.setAttribute('aria-pressed', String(topic.id === selection?.topic));
       item.addEventListener('click', () => {
         closeMenu(true);
         selectTopic(topic.id);
@@ -81,17 +80,21 @@ export function mountGlobe(countries, topics, selectTopic) {
     const focusedId = document.activeElement?.dataset.pin;
     closeMenu();
     const points = placedTopics.map(topic => place(topic, width, height)).filter(Boolean);
-    const groups = clusterPins(points, selected, 36);
+    const anchor = points.find(topic => topic.id === selection?.topic);
+    const groups = clusterPins(points, selection?.topic, 36);
+    const queries = selection?.queries ?? [];
+    const queryPositions = queryPinPositions(anchor, queries.length, width, height, groups);
     const buttons = groups.map(({ x, y, members }) => {
       const button = document.createElement('button');
       const ids = members.map(topic => topic.id).sort().join(' ');
-      const active = members.find(topic => topic.id === selected);
+      const active = members.find(topic => topic.id === selection?.topic);
       button.type = 'button';
       button.className = 'map-marker';
       button.dataset.pin = ids;
       button.style.left = `${x}px`;
       button.style.top = `${y}px`;
-      button.classList.toggle('label-left', x > width * .62);
+      const fanOnRight = queryPositions.some(pin => pin.x > x + 10);
+      button.classList.toggle('label-left', active && queryPositions.length ? fanOnRight : x > width * .62);
       button.classList.toggle('selected', Boolean(active));
       const dot = document.createElement('span');
       dot.className = 'marker-dot';
@@ -120,6 +123,33 @@ export function mountGlobe(countries, topics, selectTopic) {
       }
       return button;
     });
+    if (queryPositions.length) {
+      context.beginPath();
+      queryPositions.forEach(({ x, y }, index) => {
+        context.moveTo(anchor.x, anchor.y);
+        context.lineTo(x, y);
+        const query = queries[index];
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'query-pin';
+        button.dataset.pin = `query:${query.id}`;
+        button.style.left = `${x}px`;
+        button.style.top = `${y}px`;
+        button.title = query.text;
+        button.setAttribute('aria-label', `Query: ${query.text}`);
+        button.setAttribute('aria-pressed', String(query.id === selection.queryId));
+        button.addEventListener('click', () => selectQuery(query.id));
+        buttons.push(button);
+      });
+      context.lineWidth = 3;
+      context.strokeStyle = '#132341';
+      context.stroke();
+      context.setLineDash([4, 3]);
+      context.lineWidth = 1.6;
+      context.strokeStyle = '#b9f4ff';
+      context.stroke();
+      context.setLineDash([]);
+    }
     markers.replaceChildren(...buttons);
     if (focusedId) (buttons.find(button => button.dataset.pin === focusedId) ?? map).focus({ preventScroll: true });
   }
@@ -171,7 +201,6 @@ export function mountGlobe(countries, topics, selectTopic) {
     context.strokeStyle = '#97baff';
     context.lineWidth = 1.25;
     context.stroke();
-    hasDrawn = true;
     drawMarkers(width, height);
   }
 
@@ -219,15 +248,14 @@ export function mountGlobe(countries, topics, selectTopic) {
   reset.disabled = false;
   setView(DEFAULT_VIEW.lon, DEFAULT_VIEW.lat, DEFAULT_VIEW.zoom);
   return {
-    select(topicId) {
-      if (selected === topicId) return;
-      selected = topicId;
-      const topic = placedTopics.find(item => item.id === selected);
-      const visible = topic && (hasDrawn
-        ? place(topic, map.clientWidth, map.clientHeight)
-        : geoDistance([view.lon, view.lat], topic.location) <= LIMB);
-      if (topic && !visible) {
-        setView(...topic.location, view.zoom);
+    setSelection(next, refocus = false) {
+      if (!next) return;
+      const center = refocus || selection?.topic !== next.topic;
+      selection = next;
+      if (center) {
+        const topic = placedTopics.find(item => item.id === selection.topic);
+        if (topic) setView(...topic.location, view.zoom);
+        else setView(DEFAULT_VIEW.lon, DEFAULT_VIEW.lat, DEFAULT_VIEW.zoom);
       } else {
         scheduleDraw();
       }
