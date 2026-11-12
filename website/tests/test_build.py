@@ -32,3 +32,24 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(build.project(-180, 84), [0, 0])
         self.assertEqual(build.project(180, -60), [1000, 400])
         self.assertEqual(build.project(0, 12), [500, 200])
+
+    def test_rankings_use_paired_cases_for_topic_language_and_joint_filters(self):
+        scores = [
+            ("gaza", "ar", "NI", (0, 1)),
+            ("gaza", "en", "NI", (1, 0)),
+            ("tigray", "ar", "NI", (0.5, 0.5)),
+            ("tigray", "ar", "DP", (0.25, 0)),
+        ]
+        rows = [
+            {"topic": topic, "query_language": lang, "model_id": model,
+             "task": task, "score": score, "language_status": "same" if score else "no_answer"}
+            for topic, lang, task, pair in scores
+            for model, score in zip(("a", "b"), pair)
+        ]
+        slices = build.ranking_slices(rows)
+        self.assertEqual(slices["gaza"]["ar"], {
+            "counts": {"NI": 1}, "scores": {"a": {"NI": 0}, "b": {"NI": 1}},
+        })
+        self.assertEqual(slices["gaza"]["all"]["scores"]["a"]["NI"], 0.5)
+        self.assertEqual(slices["all"]["ar"]["counts"], {"NI": 2, "DP": 1})
+        self.assertNotIn("en", slices["tigray"])

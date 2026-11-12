@@ -110,6 +110,32 @@ def copy_browser_libraries(site):
     shutil.copyfile(HERE / "node_modules/internmap/LICENSE", vendor / "internmap-LICENSE.txt")
 
 
+def ranking_slices(rows):
+    groups = defaultdict(lambda: defaultdict(list))
+    for row in rows:
+        topic, language = row["topic"], row["query_language"]
+        groups[topic][language].append(row)
+        groups[topic]["all"].append(row)
+        groups["all"][language].append(row)
+
+    slices = {}
+    for topic, languages in groups.items():
+        slices[topic] = {}
+        for language, members in languages.items():
+            summary = summarize(members)["models"]
+            counts = {}
+            scores = {}
+            for model, result in summary.items():
+                tasks = result["tasks"]
+                model_counts = {task: stats["cases"] for task, stats in tasks.items()}
+                if counts and counts != model_counts:
+                    raise ValueError(f"Inconsistent model denominators for {topic} / {language}")
+                counts = model_counts
+                scores[model] = {task: stats["mean"] for task, stats in tasks.items()}
+            slices[topic][language] = {"counts": counts, "scores": scores}
+    return slices
+
+
 def build_site(release, output):
     for name, digest in LOCK["sha256"].items():
         verify_input(release / name, digest)
@@ -167,7 +193,10 @@ def build_site(release, output):
         if abs(score(case, answer, language, documents) - value) > 1e-12:
             raise ValueError(f"Recorded score does not replay: {case_id} {model}")
         responses[case_id][model] = {"text": answer, "language": language, "score": value}
-        summary_rows.append({"model_id": model, "task": case["task"], "score": value, "language_status": language})
+        summary_rows.append({
+            "model_id": model, "task": case["task"], "score": value, "language_status": language,
+            "topic": topics[case["topic"]]["id"], "query_language": case["query_language"],
+        })
 
     if any(set(responses[case_id]) != set(models) for case_id in cases):
         raise ValueError("Each evaluation case must have all model configurations")
@@ -220,6 +249,7 @@ def build_site(release, output):
             }
             for doc_id, row in documents.items()
         })
+        write_json(data / "rankings.json", ranking_slices(summary_rows))
         write_json(data / "catalog.json", {
             "topics": catalog_topics, "languages": languages, "models": models_view,
             "counts": {"queries": len(queries), "cases": len(cases), "responses": len(summary_rows), "tasks": counts},

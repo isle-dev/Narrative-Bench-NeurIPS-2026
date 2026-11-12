@@ -22,14 +22,14 @@ export function leaderboardFigure(rows, metric, cases, width) {
       text: values.map(value => `${(value * 100).toFixed(1)}%`),
       textposition: 'middle right',
       textfont: { size: compact ? 9 : 12 },
-      hovertemplate: `<b>%{y}</b><br>${metric}: %{x:.1%}<br>Rank %{customdata[0]} · %{customdata[1]} cases<extra></extra>`,
+      hovertemplate: `<b>%{y}</b><br>${metric}: %{x:.1%}<br>Rank %{customdata[0]} · n = %{customdata[1]}<extra></extra>`,
       cliponaxis: false,
     },
   ];
   const layout = {
     width,
     height: rows.length * (compact ? 27 : 30) + 69,
-    margin: { l: compact ? 144 : 233, r: compact ? 26 : 46, t: 12, b: 56 },
+    margin: { l: compact ? 144 : 233, r: compact ? 38 : 46, t: 12, b: 56 },
     showlegend: false,
     hovermode: 'closest',
     dragmode: false,
@@ -46,7 +46,7 @@ export function leaderboardFigure(rows, metric, cases, width) {
       fixedrange: true,
       title: { text: compact ? 'Mean score' : 'Mean language-gated score', font: { size: compact ? 11 : 13 } },
     },
-    yaxis: { type: 'category', showgrid: false, categoryorder: 'array', categoryarray: names, autorange: 'reversed', fixedrange: true },
+    yaxis: { type: 'category', ticklabelstandoff: 9, showgrid: false, categoryorder: 'array', categoryarray: names, autorange: 'reversed', fixedrange: true },
   };
   return { traces, layout };
 }
@@ -81,8 +81,18 @@ export function mountLeaderboardPlot(host, status) {
     if (host.clientWidth && host.clientWidth !== previousWidth) draw();
   }).observe(host);
 
-  return (rows, metric, cases) => {
+  function plot(rows, metric, cases) {
     current = { rows, metric, cases };
+    host.hidden = false;
     draw();
+  }
+
+  plot.clear = message => {
+    current = null;
+    host.hidden = true;
+    status.textContent = message;
+    status.hidden = false;
   };
+
+  return plot;
 }

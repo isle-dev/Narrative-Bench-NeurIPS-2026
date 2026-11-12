@@ -21,3 +21,24 @@ export function clusterPins(points, selected, gap) {
   }
   return groups;
 }
+
+export function queryPinPositions(anchor, count, width, height, topicPins) {
+  if (!anchor || !count) return [];
+  const radius = 53;
+  const margin = 18;
+  let best = [];
+  let clearance = -Infinity;
+  for (let direction = 0; direction < 8; direction++) {
+    const fan = Array.from({ length: count }, (_, index) => {
+      const angle = direction * Math.PI / 4 + (index - (count - 1) / 2) * .83;
+      return { x: anchor.x + radius * Math.cos(angle), y: anchor.y + radius * Math.sin(angle) };
+    });
+    if (fan.some(({ x, y }) => x < margin || x > width - margin || y < margin || y > height - margin)) continue;
+    const gap = Math.min(...fan.flatMap(pin => topicPins.map(topic => Math.hypot(pin.x - topic.x, pin.y - topic.y))));
+    if (gap > clearance) {
+      best = fan;
+      clearance = gap;
+    }
+  }
+  return best;
+}
