@@ -8,8 +8,8 @@ const queries = [
 ];
 
 test('only recognized fragment routes and parameters are used', () => {
-  assert.deepEqual(parseRoute('#leaderboard?metric=NE&topic=gaza&lang=ar&unused=x'), {
-    page: 'leaderboard', metric: 'NE', topic: 'gaza', lang: 'ar',
+  assert.deepEqual(parseRoute('#leaderboard?metric=NE&topic=gaza&lang=ar&sourceModel=gemini&unused=x'), {
+    page: 'leaderboard', metric: 'NE', topic: 'gaza', lang: 'ar', sourceModel: 'gemini',
   });
   assert.deepEqual(parseRoute('#unknown?topic=china'), { page: 'explorer' });
   assert.deepEqual(parseRoute('#explore?topic=china&query=q1&lang=ar&task=DP&pins=queries&scope=dataset&mapLang=ar'), {

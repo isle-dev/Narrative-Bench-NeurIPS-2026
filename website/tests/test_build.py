@@ -52,21 +52,30 @@ class BuildTests(unittest.TestCase):
              "task": task, "score": score, "language_status": "same" if score else "different",
              "source_languages": ("English",), "omitted_languages": () if score else ("English",)}
             for i, (topic, lang, task, pair) in enumerate(scores)
-            for model, score in zip(("a", "b"), pair)
+            for model, score in zip(("a.1", "b"), pair)
         ]
         slices = build.ranking_slices(rows, cases, documents)
         arabic_gaza = slices["gaza"]["ar"]
         self.assertEqual(arabic_gaza["counts"], {"NI": 1})
-        self.assertEqual(arabic_gaza["scores"], {"a": {"NI": 0}, "b": {"NI": 1}})
-        self.assertEqual(arabic_gaza["diagnostics"]["a"]["query_language_gap_pp"], 100)
-        self.assertEqual(arabic_gaza["diagnostics"]["a"]["language_violations"], 1)
-        self.assertIsNone(arabic_gaza["diagnostics"]["a"]["target_language_gap_pp"])
-        self.assertIsNone(slices["gaza"]["en"]["diagnostics"]["a"]["query_language_gap_pp"])
-        self.assertEqual(slices["gaza"]["all"]["scores"]["a"]["NI"], 0.5)
+        self.assertEqual(arabic_gaza["scores"], {"a.1": {"NI": 0}, "b": {"NI": 1}})
+        self.assertEqual(arabic_gaza["diagnostics"]["a.1"]["query_language_gap_pp"], 100)
+        self.assertEqual(arabic_gaza["diagnostics"]["a.1"]["language_violations"], 1)
+        self.assertIsNone(arabic_gaza["diagnostics"]["a.1"]["target_language_gap_pp"])
+        self.assertIsNone(slices["gaza"]["en"]["diagnostics"]["a.1"]["query_language_gap_pp"])
+        self.assertEqual(slices["gaza"]["all"]["scores"]["a.1"]["NI"], 0.5)
         self.assertEqual(slices["all"]["ar"]["counts"], {"NI": 2, "DP": 1})
         self.assertEqual(slices["all"]["ar"]["diagnostics"]["b"]["dp_omission_pct"], 100)
         self.assertEqual(slices["all"]["ar"]["sourceOmissions"]["DP"]["English"], [1, 2])
-        self.assertIsNone(slices["tigray"]["ar"]["diagnostics"]["a"]["query_language_gap_pp"])
+        with tempfile.TemporaryDirectory() as folder:
+            build.write_model_omissions(Path(folder), slices)
+            import json
+            first = json.loads((Path(folder) / "source-omissions/a.1.json").read_text())
+            second = json.loads((Path(folder) / "source-omissions/b.json").read_text())
+            self.assertEqual(first["all"]["ar"]["DP"]["English"], [0, 1])
+            self.assertEqual(second["all"]["ar"]["DP"]["English"], [1, 1])
+            self.assertEqual(second["all"]["all"]["DP"]["English"], [1, 1])
+            self.assertNotIn("sourceOmissionsByModel", slices["all"]["ar"])
+        self.assertIsNone(slices["tigray"]["ar"]["diagnostics"]["a.1"]["query_language_gap_pp"])
         self.assertNotIn("en", slices["tigray"])
 
     def test_source_omission_counts_only_valid_citations_and_unique_languages(self):
@@ -181,3 +190,11 @@ class BuildTests(unittest.TestCase):
             self.assertNotIn(filename, header)
             self.assertRegex(footer, rf'<a href="{re.escape(url)}">\s*<img src="./assets/{re.escape(filename)}"[^>]*alt="{name}"')
             self.assertTrue((source / "assets" / filename).is_file())
+
+    def test_paper_and_dataset_links_open_separately_and_risks_cite_the_studies(self):
+        page = (build.HERE / "src/index.html").read_text()
+        for url in ("https://arxiv.org/abs/2611.12750", "https://huggingface.co/datasets/jhu-clsp/narrative-bench"):
+            self.assertIn(f'href="{url}" target="_blank" rel="noopener noreferrer"', page)
+        self.assertIn('https://aclanthology.org/2025.naacl-long.411/', page)
+        self.assertIn('https://arxiv.org/abs/2402.05880', page)
+        self.assertIn('id="source-model"', page)

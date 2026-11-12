@@ -313,12 +313,12 @@ export function mountGlobe(countries, { topics, languages, queryIndex }, { selec
       context.setLineDash([1, 7]);
       context.lineCap = 'round';
       context.stroke();
-      context.strokeStyle = '#ffe3b5';
+      context.strokeStyle = '#ffd9df';
       context.lineWidth = 2;
       context.stroke();
       context.beginPath();
       path({ type: 'MultiPoint', coordinates: regions.map(region => region.location) });
-      context.fillStyle = '#ffe3b5';
+      context.fillStyle = '#ffd9df';
       context.fill();
       context.setLineDash([]);
       context.lineWidth = 1.4;
