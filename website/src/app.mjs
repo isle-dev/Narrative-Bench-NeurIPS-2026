@@ -1,5 +1,5 @@
 import { formatAnswer } from './answer-format.mjs';
-import { mountLeaderboardPlot } from './leaderboard.mjs';
+import { mountLeaderboardPlot, mountPaperResults, paperResultsRows } from './leaderboard.mjs';
 import { parseRoute, queryLanguages, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
@@ -24,6 +24,9 @@ const percent = value => `${(Math.round(value * 1000) / 10).toFixed(1)}%`;
 const cache = new Map();
 const currentResponses = new WeakMap();
 const plotRanking = mountLeaderboardPlot($('rank-plot'), $('ranking-status'));
+const plotPaper = mountPaperResults($('paper-matrix'), $('paper-fallback'), $('paper-status'));
+let paper;
+let paperSort = 'paper';
 let catalog;
 let map;
 let mapSelection;
@@ -91,6 +94,27 @@ function sortedTopics() {
   return [...catalog.topics].sort((a, b) => a.label.localeCompare(b.label));
 }
 
+function renderPaperResults() {
+  options($('paper-sort'), [['paper', 'Paper order'], ...paper.columns.map((column, index) => [String(index), column.label])], paperSort);
+  const table = element('table');
+  table.append(element('caption', 'Exact scores from Table 1. Parentheses show standard errors.', 'sr-only'));
+  const head = table.createTHead().insertRow();
+  for (const name of ['Model', ...paper.columns.map(column => `${column.label} (${column.unit})`)]) {
+    const heading = element('th', name);
+    heading.scope = 'col';
+    head.append(heading);
+  }
+  const body = table.createTBody();
+  for (const model of paperResultsRows(paper, paperSort)) {
+    const row = body.insertRow();
+    const name = element('th', model.name);
+    name.scope = 'row';
+    row.append(name, ...model.cells.map(cell => element('td', cell.display, 'number')));
+  }
+  $('paper-fallback').replaceChildren(table);
+  plotPaper(paper, paperSort);
+}
+
 async function renderLeaderboard(route, run) {
   const metric = Object.hasOwn(TASKS, route.metric) ? route.metric : 'NI';
   const topics = sortedTopics();
@@ -106,17 +130,32 @@ async function renderLeaderboard(route, run) {
   });
   history.replaceState(null, '', hash);
   $('nav-leaderboard').href = hash;
+  const filtered = topic !== 'all' || lang !== 'all';
+  $('paper-results').hidden = filtered;
+  $('slice-scores').hidden = !filtered;
   $('score-note').hidden = true;
   $('table-scroll').hidden = true;
   plotRanking.clear('Loading scores…');
 
   let slices;
-  if (topic !== 'all' || lang !== 'all') {
+  if (filtered) {
     try {
       slices = await data('rankings');
     } catch (error) {
       if (run === renderId) plotRanking.clear('Filtered scores could not load.');
       throw error;
+    }
+  } else {
+    try {
+      const results = paper ?? await data('paper-results');
+      if (run !== renderId) return;
+      paper = results;
+      renderPaperResults();
+    } catch {
+      if (run !== renderId) return;
+      $('paper-status').textContent = 'The exact scores could not load. Open Table 1 to see the published results.';
+      $('paper-status').hidden = false;
+      $('slice-scores').hidden = false;
     }
   }
   if (run !== renderId) return;
@@ -400,6 +439,21 @@ async function render() {
 document.querySelector('.skip-link').addEventListener('click', event => {
   event.preventDefault();
   $('main').focus();
+});
+function scrollToSection(id) {
+  const section = $(id);
+  section.focus({ preventScroll: true });
+  section.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+}
+
+$('open-map').addEventListener('click', () => scrollToSection('globe-section'));
+$('nav-authors').addEventListener('click', event => {
+  event.preventDefault();
+  scrollToSection('authors');
+});
+$('paper-sort').addEventListener('change', event => {
+  paperSort = event.target.value;
+  renderPaperResults();
 });
 $('topic').addEventListener('change', event => selectTopic(event.target.value));
 for (const [id, parameter] of [

@@ -79,7 +79,34 @@ class BuildTests(unittest.TestCase):
                       "Provide comparable access across languages", "Filter bubbles", "Echo chambers",
                       "Linguistic disparities"):
             self.assertIn(label, page)
-        self.assertIn('<section class="score-method" aria-labelledby="scores-title">', page)
+        self.assertIn('<section class="score-method" aria-labelledby="scores-title" id="slice-scores" hidden>', page)
         self.assertIn('<details class="score-method" open>', page)
         self.assertIn('<details class="case-details" open>', page)
         self.assertIn('eprint={2611.12750}', (source / 'narrativebench.bib').read_text())
+
+    def test_map_regions_are_distinct_and_valid(self):
+        self.assertEqual(build.topic_regions({"regions": [["Iran", 53, 32], ["U.S.", -98, 39]]}), [
+            {"label": "Iran", "location": [53, 32]}, {"label": "U.S.", "location": [-98, 39]},
+        ])
+        for regions in ([["Iran", 181, 32], ["U.S.", -98, 39]], [["Iran", 53, 32]]):
+            with self.assertRaisesRegex(ValueError, "regions"):
+                build.topic_regions({"regions": regions})
+
+    def test_usa_topic_markers_share_an_interior_anchor(self):
+        import json
+        topics = json.loads((build.HERE / "topics.json").read_text())
+        for key in ("mamdani", "us_midterms"):
+            self.assertEqual(topics[key]["anchor"], [-98.35, 39.5])
+
+    def test_each_paper_author_has_a_personal_link_in_the_shared_footer(self):
+        page = (build.HERE / "src/index.html").read_text()
+        footer = page.split("<footer class=\"shell footer\">", 1)[1]
+        authors = [
+            ("Nikhil Sharma", "https://www.nikhilsksharma.com/"),
+            ("Kelly Marchisio", "https://kellymarchisio.github.io/"),
+            ("Kenton Murray", "https://kentonmurray.com/"),
+            ("Ziang Xiao", "https://www.ziangxiao.com/"),
+        ]
+        for name, url in authors:
+            self.assertIn(f'<a href="{url}">{name}', footer)
+        self.assertIn('href="#authors"', page.split("</header>", 1)[0])
