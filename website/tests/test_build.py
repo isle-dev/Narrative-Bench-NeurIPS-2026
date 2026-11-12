@@ -128,12 +128,18 @@ class BuildTests(unittest.TestCase):
             ("Ziang Xiao", "https://www.ziangxiao.com/"),
         ]
         hero = page.split('<header class="research-hero">', 1)[1].split("</header>", 1)[0]
-        self.assertRegex(hero, r'</h1>\s+<p class="hero-byline">')
-        byline = hero.split('<p class="hero-byline">', 1)[1].split("</p>", 1)[0]
+        self.assertRegex(hero, r'</h1>\s+<ul class="hero-byline"')
+        byline = hero.split('<ul class="hero-byline"', 1)[1].split("</ul>", 1)[0]
+        portraits = re.findall(
+            r'<a href="([^"]+)">\s*<img src="(\./assets/authors/[^"]+\.webp)"[^>]*alt=""[^>]*>\s*<span>([^<]+)</span>',
+            byline,
+        )
+        self.assertEqual([(name, url) for url, _, name in portraits], authors)
+        for _, src, _ in portraits:
+            self.assertTrue((build.HERE / "src" / src).is_file())
         footer_list = footer.split('<ul class="author-list">', 1)[1].split("</ul>", 1)[0]
-        for section in (byline, footer_list):
-            links = re.findall(r'<a href="([^"]+)">([^<]+)', section)
-            self.assertEqual([(name.strip(), url) for url, name in links], authors)
+        links = re.findall(r'<a href="([^"]+)">([^<]+)', footer_list)
+        self.assertEqual([(name.strip(), url) for url, name in links], authors)
         self.assertIn('href="#authors"', page.split("</header>", 1)[0])
 
     def test_browser_asset_versions_change_with_the_score_data(self):

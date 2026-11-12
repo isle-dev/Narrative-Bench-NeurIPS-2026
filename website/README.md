@@ -8,6 +8,8 @@ The leaderboard filters the released cases by topic and query language, with the
 
 The unmodified horizontal Johns Hopkins University logo is from the [University Communications download library](https://brand.jhu.edu/resources/download-library/?category=219&search=university). The site hosts Work Sans and Source Serif 4 locally under their bundled font licenses.
 
+The homepage uses locally hosted portraits from the personal websites of [Nikhil Sharma](https://www.nikhilsksharma.com/), [Kelly Marchisio](https://kellymarchisio.github.io/), and [Ziang Xiao](https://www.ziangxiao.com/). Kenton Murray’s headshot comes from the [Maieutic Lab people page](https://maieutic-nlp.github.io/website/people/) linked from his personal website.
+
 ## Run locally
 
 Use Python 3.12 and Node.js 22. Run these commands from the repository root.

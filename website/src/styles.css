@@ -77,8 +77,18 @@ nav .nav-dataset { border-color: var(--accent); }
 .project-name, .intro .project-name { color: var(--accent); font-size: .9rem; font-weight: 700; margin: 0 0 .6rem; }
 .research-hero h1 { color: var(--accent); font-size: clamp(3.1rem, 6.25vw, 6.7rem); font-weight: 500; line-height: 1; letter-spacing: -.064em; }
 mark { background: var(--gold); color: var(--accent); font-style: italic; padding: 0 .11em .025em; white-space: nowrap; }
-.hero-byline { margin-top: .95rem; font-size: .92rem; font-weight: 550; }
-.hero-byline a { white-space: nowrap; }
+.hero-byline {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem;
+  max-width: 27rem; margin: 1.15rem 0 .92rem; padding: 0; list-style: none;
+  font-size: clamp(.74rem, 1.25vw, .86rem); font-weight: 600; line-height: 1.3;
+}
+.hero-byline a {
+  display: flex; flex-direction: column; align-items: center; gap: .34rem; text-align: center;
+}
+.hero-byline img {
+  display: block; width: clamp(2.7rem, 4.7vw, 3.75rem); height: auto; aspect-ratio: 1;
+  border: 1px solid var(--line); border-radius: 50%; object-fit: cover; object-position: center 35%;
+}
 .hero-question { margin-top: .62rem; max-width: 31rem; font-size: clamp(1.04rem, 1.52vw, 1.35rem); line-height: 1.42; }
 .hero-illustration { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 53%; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: .55rem .72rem; align-items: center; margin-top: 1.35rem; }
