@@ -1,6 +1,5 @@
 const config = { displayModeBar: false, displaylogo: false, showTips: false };
-const maroon = '#741d34';
-const font = { family: 'Work Sans, system-ui, sans-serif', color: maroon };
+const font = { family: 'Work Sans, system-ui, sans-serif', color: '#002d72' };
 let plotly;
 
 function loadPlotly() {
@@ -70,7 +69,7 @@ export function paperResultsFigure(paper, sort, width) {
     margin: { l: 214, r: 16, t: 89, b: 12 },
     barmode: 'stack', bargap: .11, showlegend: false, hovermode: 'closest', dragmode: false,
     paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { ...font, size: 12 },
-    hoverlabel: { bgcolor: maroon, font: { color: '#f8f8fc' }, align: 'left' },
+    hoverlabel: { bgcolor: '#002d72', font: { color: '#f8f8fc' }, align: 'left' },
     annotations: [
       group('<b>Foundational capabilities</b>', 1.5, 1.176, 13),
       group('<b>Higher-level information-seeking capabilities</b>', 6.5, 1.176, 13),
@@ -183,8 +182,8 @@ export function sourceOmissionRows(data = {}, pooled = data) {
 export function sourceOmissionFigure(rows, width) {
   const names = rows.map(row => row.language);
   const traces = [
-    ['BP', 'Baseline prompt', '#b86b7d'],
-    ['DP', 'Diverse prompt', maroon],
+    ['BP', 'Baseline prompt', '#68ace5'],
+    ['DP', 'Diverse prompt', '#145897'],
   ].map(([task, name, color]) => ({
     type: 'bar', orientation: 'h', name, y: names,
     x: rows.map(row => omissionRate(row[task])),
@@ -198,7 +197,7 @@ export function sourceOmissionFigure(rows, width) {
     barmode: 'group', bargap: .22, dragmode: false, hovermode: 'closest', showlegend: Boolean(rows.length),
     legend: { orientation: 'h', x: 0, y: 1.02, yanchor: 'bottom' },
     paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { ...font, size: width < 530 ? 10 : 12 },
-    hoverlabel: { bgcolor: maroon, font: { color: '#f8f8fc' }, align: 'left' },
+    hoverlabel: { bgcolor: '#002d72', font: { color: '#f8f8fc' }, align: 'left' },
     xaxis: { range: [0, 1], tickformat: '.0%', fixedrange: true, gridcolor: '#dce5ee',
       title: { text: 'Source-language omission rate' } },
     yaxis: { type: 'category', categoryorder: 'array', categoryarray: names, autorange: 'reversed', fixedrange: true },
@@ -218,14 +217,14 @@ export function leaderboardFigure(rows, metric, cases, width) {
   const compact = width < 600;
   const names = rows.map(row => row.name);
   const values = rows.map(row => row.value == null ? null : row.value / 1000);
-  const color = rows.map(row => row.rank === 1 ? maroon : '#a55166');
+  const color = rows.map(row => row.rank === 1 ? '#002d72' : '#4877a8');
   const traces = [
     {
       type: 'scatter',
       mode: 'lines',
       x: values.flatMap(value => [value == null ? null : 0, value, null]),
       y: names.flatMap(name => [name, name, null]),
-      line: { color: '#d6a1af', width: 2 },
+      line: { color: '#8ab5da', width: 2 },
       hoverinfo: 'skip',
     },
     {
@@ -255,7 +254,7 @@ export function leaderboardFigure(rows, metric, cases, width) {
     paper_bgcolor: 'transparent',
     plot_bgcolor: 'transparent',
     font: { ...font, size: compact ? 10 : 13 },
-    hoverlabel: { bgcolor: maroon, font: { color: '#f8f8fc' }, align: 'left' },
+    hoverlabel: { bgcolor: '#161e36', font: { color: '#f8f8fc' }, align: 'left' },
     xaxis: {
       range: [0, 1],
       tickformat: '.0%',
