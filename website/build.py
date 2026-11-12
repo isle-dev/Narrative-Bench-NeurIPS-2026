@@ -91,6 +91,25 @@ def write_json(path, data):
         stream.write("\n")
 
 
+def copy_browser_libraries(site):
+    libraries = {
+        "d3-array": ("dist/d3-array.min.js", "d3-array.js"),
+        "d3-geo": ("dist/d3-geo.min.js", "d3-geo.js"),
+        "plotly.js-basic-dist-min": ("plotly-basic.min.js", "plotly.js"),
+        "marked": ("lib/marked.esm.js", "marked.mjs"),
+        "dompurify": ("dist/purify.es.mjs", "dompurify.mjs"),
+    }
+    vendor = site / "vendor"
+    vendor.mkdir()
+    for package, (source, filename) in libraries.items():
+        root = HERE / "node_modules" / package
+        if not (root / source).is_file():
+            raise FileNotFoundError("Run npm ci --prefix website --ignore-scripts before building")
+        shutil.copyfile(root / source, vendor / filename)
+        shutil.copyfile(root / "LICENSE", vendor / f"{package}-LICENSE.txt")
+    shutil.copyfile(HERE / "node_modules/internmap/LICENSE", vendor / "internmap-LICENSE.txt")
+
+
 def build_site(release, output):
     for name, digest in LOCK["sha256"].items():
         verify_input(release / name, digest)
@@ -163,6 +182,7 @@ def build_site(release, output):
     with tempfile.TemporaryDirectory(dir=output.parent) as stage:
         site = Path(stage) / "site"
         shutil.copytree(HERE / "src", site)
+        copy_browser_libraries(site)
         data = site / "data"
         (data / "topics").mkdir(parents=True)
         (data / "cases").mkdir()
@@ -171,7 +191,10 @@ def build_site(release, output):
             topic_id = file_id(topic["id"])
             entries = queries_by_topic[key]
             point = project(*topic["anchor"]) if topic["anchor"] else None
-            catalog_topics.append({"id": topic_id, "label": topic["label"], "point": point, "count": len(entries)})
+            entry = {"id": topic_id, "label": topic["label"], "point": point, "count": len(entries)}
+            if "pinLabel" in topic:
+                entry["pinLabel"] = topic["pinLabel"]
+            catalog_topics.append(entry)
             write_json(data / "topics" / f"{topic_id}.json", entries)
         for case_id, case in cases.items():
             write_json(data / "cases" / f"{case_id}.json", {

@@ -1,4 +1,5 @@
-import { mountMap } from './map.mjs';
+import { formatAnswer } from './answer-format.mjs';
+import { mountLeaderboardPlot } from './leaderboard.mjs';
 import { parseRoute, rankedRows, resolveSelection } from './state.mjs';
 
 const TASKS = {
@@ -21,6 +22,8 @@ const $ = id => document.getElementById(id);
 const number = new Intl.NumberFormat('en');
 const percent = value => `${(Math.round(value * 1000) / 10).toFixed(1)}%`;
 const cache = new Map();
+const currentResponses = new WeakMap();
+const plotRanking = mountLeaderboardPlot($('rank-plot'), $('ranking-status'));
 let catalog;
 let map;
 let renderId = 0;
@@ -70,8 +73,12 @@ function changeRoute(changes) {
   else location.hash = hash;
 }
 
-function selectTopic(topic) {
+function selectTopic(topic, fromGlobe = false) {
+  if (parseRoute(location.hash).topic === topic) return;
   changeRoute({ topic, query: undefined });
+  if (fromGlobe && matchMedia('(max-width: 850px)').matches) {
+    $('topic-title').scrollIntoView({ block: 'start' });
+  }
 }
 
 function renderLeaderboard(route) {
@@ -92,7 +99,8 @@ function renderLeaderboard(route) {
     head.append(cell);
   }
   $('score-head').replaceChildren(head);
-  const rows = rankedRows(catalog.models, metric).map(model => {
+  const ranking = rankedRows(catalog.models, metric);
+  const rows = ranking.map(model => {
     const row = element('tr');
     const name = element('th', model.name);
     name.scope = 'row';
@@ -106,8 +114,8 @@ function renderLeaderboard(route) {
   $('score-note').textContent =
     `${number.format(catalog.models.length)} model configurations · ${number.format(catalog.counts.tasks[metric])} cases per model for ${TASKS[metric][0]}`;
   $('score-note').hidden = false;
-  $('ranking-status').hidden = true;
   $('table-scroll').hidden = false;
+  plotRanking(ranking, TASKS[metric][1], catalog.counts.tasks[metric]);
 }
 
 function renderQueries(topic, selection) {
@@ -137,7 +145,7 @@ function renderQueries(topic, selection) {
     const top = active.offsetTop;
     if (top < list.scrollTop || top + active.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = top;
   }
-  $('query-count').textContent = choices.length ? number.format(choices.length) : '';
+  $('query-count').textContent = choices.length ? `${number.format(choices.length)} queries` : '';
   $('query-status').hidden = Boolean(choices.length);
   $('query-status').textContent = 'No queries are available in this language.';
 }
@@ -155,13 +163,26 @@ function setAnswerStatus(message, retry) {
 }
 
 function renderAnswer(container, response, lang) {
+  if (currentResponses.get(container) === response) return;
   const score = element('strong', `Score ${percent(response.score)}`);
   const meta = element('p', undefined, 'answer-meta');
   meta.append(score, element('span', LANGUAGE_STATUS[response.language]));
-  const text = element('p', response.text.trim() ? response.text : 'No answer was recorded.', 'answer-text');
+  const text = element('div', undefined, 'answer-text');
   text.dir = 'auto';
   if (response.language === 'same') text.lang = lang;
+  if (response.text.trim()) {
+    try {
+      text.append(formatAnswer(response.text));
+    } catch {
+      text.textContent = response.text;
+      text.classList.add('plain-answer');
+    }
+  } else {
+    text.textContent = 'No answer was recorded.';
+  }
   container.replaceChildren(meta, text);
+  container.scrollTop = 0;
+  currentResponses.set(container, response);
 }
 
 function renderCaseDetails(item, sources) {
@@ -204,6 +225,7 @@ async function renderExplorer(route, run) {
   const topic = sortedTopics.find(item => item.id === route.topic)
     ?? sortedTopics.find(item => item.id === DEFAULT_TOPIC) ?? sortedTopics[0];
   options($('topic'), sortedTopics.map(item => [item.id, item.label]), topic.id);
+  if ($('topic-title').textContent !== topic.label) $('topic-title').textContent = topic.label;
   map?.select(topic.id);
 
   if (!queryListKey?.startsWith(`${topic.id}/`)) {
@@ -312,8 +334,8 @@ $('retry').addEventListener('click', render);
 window.addEventListener('hashchange', render);
 await render();
 try {
-  const [geometry, index] = await Promise.all([data('map'), data('catalog')]);
-  map = mountMap(geometry, index.topics, selectTopic);
+  const [{ mountGlobe }, geometry, index] = await Promise.all([import('./globe.mjs'), data('map'), data('catalog')]);
+  map = mountGlobe(geometry, index.topics, id => selectTopic(id, true));
   map.select(parseRoute(location.hash).topic);
 } catch {
   $('map-error').hidden = false;
