@@ -46,7 +46,10 @@ test('the full results matrix preserves all published values and supports sortin
   const original = paperResultsFigure(paper, 'paper', 1240);
   assert.equal(original.traces.length, 11);
   assert.deepEqual(original.layout.yaxis.categoryarray, paper.rows.map(row => row.name));
-  assert.ok(original.layout.annotations.some(header => /Narrative inclusion F1/.test(header.text.replaceAll('<br>', ' '))));
+  const inclusionHeader = original.layout.annotations.find(header => header.x === .5);
+  assert.match(inclusionHeader.text.replaceAll('<br>', ' '), /<b>Narrative inclusion<\/b> F1 \(%\)/);
+  const missingHeader = original.layout.annotations.find(header => header.x === 2.5);
+  assert.match(missingHeader.text.replaceAll('<br>', ' '), /<b>Include Missing Narratives<\/b> Recall \(%\)/);
   assert.ok(original.layout.annotations.some(header => /Language violations/.test(header.text.replaceAll('<br>', ' '))));
   assert.deepEqual(original.traces[0].text.slice(0, 2), ['21.0 (1.0)', '26.0 (1.3)']);
   assert.equal(original.traces[0].marker.color[0], '#cb181d');
@@ -71,9 +74,9 @@ test('the homepage preview shows the best published score for each foundational 
   const { readFile } = await import('node:fs/promises');
   const paper = JSON.parse(await readFile(new URL('../paper-results.json', import.meta.url)));
   assert.deepEqual(paperResultsPreview(paper), [
-    { measure: 'Narrative inclusion F1', name: 'Gemini 3.8 Flash (low)', score: 52.5 },
-    { measure: 'Narrative exclusion F1', name: 'Gemini 2.5 Pro', score: 74.2 },
-    { measure: 'Missing narrative identification recall', name: 'Gemini 3.8 Flash (low)', score: 82.8 },
+    { measure: 'Narrative inclusion', name: 'Gemini 3.8 Flash (low)', score: 52.5 },
+    { measure: 'Narrative exclusion', name: 'Gemini 2.5 Pro', score: 74.2 },
+    { measure: 'Include Missing Narratives', name: 'Gemini 3.8 Flash (low)', score: 82.8 },
   ]);
 });
 
