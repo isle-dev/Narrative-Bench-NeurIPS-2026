@@ -80,6 +80,7 @@ export function paperResultsFigure(paper, sort, width, ranking, metric) {
   const activeColumn = paperSortColumn(paper, sort, metric);
   const traces = paper.columns.map((column, index) => {
     const cells = rows.map(row => row.cells[index]);
+    const measure = column.metric ? `${column.description} (${column.metric})` : column.description;
     return {
       type: 'bar', orientation: 'h', y: names, x: names.map(() => 1),
       text: cells.map(cell => cell.display),
@@ -88,8 +89,8 @@ export function paperResultsFigure(paper, sort, width, ranking, metric) {
       marker: { color: cells.map(cell => paper.palette[cell.bin] ?? '#e4eaf2'), line: { color: '#f8f8fc', width: 1 } },
       customdata: cells.map(cell => [cell.bin * 20, (cell.bin + 1) * 20]),
       hovertemplate: cells.map(cell => cell.value == null
-        ? `<b>%{y}</b><br>${column.description}: unavailable for these filters<extra></extra>`
-        : `<b>%{y}</b><br>${column.description}: %{text} (${column.unit})<br>%{customdata[0]}–%{customdata[1]}% distance from ideal<extra></extra>`),
+        ? `<b>%{y}</b><br>${measure}: unavailable for these filters<extra></extra>`
+        : `<b>%{y}</b><br>${measure}: %{text} (${column.unit})<br>%{customdata[0]}–%{customdata[1]}% distance from ideal<extra></extra>`),
     };
   });
   const header = (text, x, yshift, size) => ({
@@ -108,9 +109,9 @@ export function paperResultsFigure(paper, sort, width, ranking, metric) {
       ...paper.columns.map((column, index) => {
         const selected = index === activeColumn;
         const direction = column.task ? '↓' : '↑';
-        const unit = selected ? `(${column.unit}) ${direction}` : `(${column.unit})`;
+        const unit = column.metric ? `${column.metric} (${column.unit})` : `(${column.unit})`;
         return {
-          ...header(`<b>${wrapColumnLabel(column.description)}</b><br>${unit}`, index + .5, 57, 12),
+          ...header(`<b>${wrapColumnLabel(column.description)}</b><br>${unit}${selected ? ` ${direction}` : ''}`, index + .5, 57, 12),
           ...(selected ? { bgcolor: '#f08087', borderpad: 8 } : {}),
         };
       }),

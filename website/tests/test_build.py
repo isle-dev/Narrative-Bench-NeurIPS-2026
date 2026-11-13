@@ -104,7 +104,7 @@ class BuildTests(unittest.TestCase):
     def test_front_page_includes_the_framework_and_arxiv_citation(self):
         source = build.HERE / "src"
         page = (source / "index.html").read_text()
-        for label in ("Include narratives", "Exclude narratives", "Find missing narratives",
+        for label in ("Include narratives", "Exclude narratives", "Include Missing Narratives",
                       "Present diverse narratives", "Preserve coverage under confirmatory queries",
                       "Provide comparable access across languages", "Filter bubbles", "Echo chambers",
                       "Linguistic disparities"):
@@ -162,7 +162,13 @@ class BuildTests(unittest.TestCase):
         footer_list = footer.split('<ul class="author-list">', 1)[1].split("</ul>", 1)[0]
         links = re.findall(r'<a href="([^"]+)">([^<]+)', footer_list)
         self.assertEqual([(name.strip(), url) for url, name in links], authors)
-        self.assertIn('href="#authors"', page.split("</header>", 1)[0])
+
+    def test_cite_navigation_targets_the_focusable_bibtex_panel(self):
+        page = (build.HERE / "src/index.html").read_text()
+        self.assertIn('id="nav-cite" href="#cite">Cite</a>', page.split("</header>", 1)[0])
+        citation = page.split('<section id="cite"', 1)[1].split('</section>', 1)[0]
+        self.assertIn('tabindex="-1"', citation)
+        self.assertIn('id="copy-bibtex"', citation)
 
     def test_browser_asset_versions_change_with_the_score_data(self):
         with tempfile.TemporaryDirectory() as folder:

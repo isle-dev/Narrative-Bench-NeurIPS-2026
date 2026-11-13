@@ -11,35 +11,40 @@
   "columns": [
     {
       "label": "NI F1",
-      "description": "Narrative inclusion F1",
+      "description": "Narrative inclusion",
+      "metric": "F1",
       "unit": "%",
       "capability": "FC-1",
       "task": "NI"
     },
     {
       "label": "NE F1",
-      "description": "Narrative exclusion F1",
+      "description": "Narrative exclusion",
+      "metric": "F1",
       "unit": "%",
       "capability": "FC-2",
       "task": "NE"
     },
     {
       "label": "MNI recall",
-      "description": "Missing narrative identification recall",
+      "description": "Include Missing Narratives",
+      "metric": "Recall",
       "unit": "%",
       "capability": "FC-3",
       "task": "MNI"
     },
     {
       "label": "BP recall",
-      "description": "Baseline prompt recall",
+      "description": "Baseline prompt",
+      "metric": "Recall",
       "unit": "%",
       "capability": "HC-1",
       "task": "BP"
     },
     {
       "label": "DP recall",
-      "description": "Diverse prompt recall",
+      "description": "Diverse prompt",
+      "metric": "Recall",
       "unit": "%",
       "capability": "HC-1",
       "task": "DP"

@@ -5,7 +5,7 @@ import { parseRoute, queryLanguages, queryScrollState, resolveSelection, sliceRa
 const TASKS = {
   NI: 'Narrative inclusion',
   NE: 'Narrative exclusion',
-  MNI: 'Missing narrative identification',
+  MNI: 'Include Missing Narratives',
   BP: 'Baseline prompt',
   DP: 'Diverse prompt',
 };
@@ -116,7 +116,8 @@ function renderPaperResults() {
   modelHeading.scope = 'col';
   head.append(modelHeading);
   for (const [index, column] of matrix.columns.entries()) {
-    const heading = element('th', `${column.description} (${column.unit})`);
+    const detail = column.metric ? `${column.metric} (${column.unit})` : column.unit;
+    const heading = element('th', `${column.description} · ${detail}`);
     heading.scope = 'col';
     if (index === activeColumn) heading.setAttribute('aria-sort', column.task ? 'descending' : 'ascending');
     head.append(heading);
@@ -235,7 +236,7 @@ async function renderLeaderboard(route, run) {
   paper = results;
   const slice = slices?.[topic]?.[lang];
   const measures = paper.columns.filter(column => column.task);
-  const measure = measures.find(column => column.task === metric).description;
+  const measure = measures.find(column => column.task === metric);
   options($('metric'), measures.map(column => [column.task, column.description]), metric);
 
   const matrixChanged = matrixKey !== key;
@@ -258,8 +259,8 @@ async function renderLeaderboard(route, run) {
     ranking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
     const cases = selection?.counts[metric] ?? 0;
     $('score-note').textContent =
-      `${measure} · ${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model`;
-    plotRanking(ranking, measure, cases);
+      `${measure.description} · ${measure.metric} · ${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model`;
+    plotRanking(ranking, `${measure.description} (${measure.metric})`, cases);
   }
   if (matrixChanged || (rankingChanged && paperSort === 'ranking')) renderPaperResults();
   await updateSourceOmissions(topic, lang, sourceModel, filtered ? slice?.sourceOmissions : omissions, run);
@@ -582,9 +583,9 @@ $('metric-guide-link').addEventListener('click', event => {
   $('score-method').open = true;
   scrollToSection('score-method');
 });
-$('nav-authors').addEventListener('click', event => {
+$('nav-cite').addEventListener('click', event => {
   event.preventDefault();
-  scrollToSection('authors');
+  scrollToSection('cite');
 });
 $('paper-sort').addEventListener('change', event => {
   paperSort = event.target.value;
