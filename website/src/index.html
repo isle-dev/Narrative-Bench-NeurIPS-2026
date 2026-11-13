@@ -72,8 +72,8 @@
       <a class="results-preview" id="results-preview-link" href="#leaderboard" aria-labelledby="results-preview-action results-preview-title">
         <div class="results-preview-copy">
           <h2 id="results-preview-title">Models limit users’ <mark>agency</mark> to navigate narratives</h2>
-          <p>Models struggle to follow requests to include, exclude, or recover specific narratives. An answer can appear to follow the request while leaving out relevant narratives, creating an <strong>illusion of control</strong>.</p>
-          <p>Even with an explicit request for diversity, the strongest model configuration covered only <strong>about three quarters of available narratives</strong> under language-gated scoring. Narrative access also varied with query framing and language.</p>
+          <p>Models struggle to follow requests to include, exclude, or recover specific narratives. An answer that appears to follow the request can create an <strong>illusion of control</strong>. When the answer also looks complete, users may think they have seen all the relevant narratives, creating an <strong>illusion of knowledge</strong>.</p>
+          <p>Even with an explicit request for diversity, the strongest model configuration covered only <strong>about three quarters of available narratives</strong>. Narrative access also varied with query framing and language.</p>
           <span class="results-preview-action" id="results-preview-action">View full results <span aria-hidden="true">→</span></span>
         </div>
         <table id="results-preview-table" hidden>
@@ -346,7 +346,7 @@
           <div><dt>Provide comparable access across languages</dt><dd>The query-language score gap compares scores by the language of the question. The target narrative-language score gap compares scores by the publication language of the requested narrative. Both use English as the reference.</dd></div>
         </dl>
         <p>Recall is the share of required narratives covered. F1 balances recall with precision, the share of cited narratives that match the task. Displayed ties share a rank.</p>
-        <p><strong>Language-gated scores.</strong> The scorer checks whether the answer is in the language of the question. Answers identified as different-language or mixed-language receive zero. Answers with an uncertain classification proceed to citation-based scoring. Cited articles can be in any language. The language violations column counts different-language and mixed-language answers.</p>
+        <p><strong>Language-gated scoring.</strong> The scorer checks whether the answer is in the language of the question. Answers identified as different-language or mixed-language receive zero. Answers with an uncertain classification proceed to citation-based scoring. Cited articles can be in any language. The language violations column counts different-language and mixed-language answers.</p>
         <p>The unfiltered scores reproduce <a href="https://arxiv.org/pdf/2611.12750v1#page=7" target="_blank" rel="noopener noreferrer">Table 1 in the paper</a>, including standard errors in parentheses. Filtered cells show point estimates. For a selected non-English query language, the query-language score gap compares its mean score with English within the same topic scope. Framing and target narrative-language gaps require cases in both comparison groups. Score gaps are reported in percentage points.</p>
         <p><a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026/blob/main/EVALUATION.md">Evaluation documentation</a></p>
       </details>

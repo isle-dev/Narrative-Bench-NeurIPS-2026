@@ -23,6 +23,8 @@ test('the plot allocates a smaller label area on mobile', () => {
   const desktop = leaderboardFigure(rows, 'NI F1', 960, 800).layout;
   assert.equal(compact.width, 340);
   assert.ok(compact.margin.l < desktop.margin.l);
+  assert.equal(compact.xaxis.title.text, 'Mean score');
+  assert.equal(desktop.xaxis.title.text, 'Mean score');
 });
 
 test('the exact scores follow the selected ranking, with paper order available', () => {

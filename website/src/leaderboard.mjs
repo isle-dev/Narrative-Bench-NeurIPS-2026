@@ -299,7 +299,7 @@ export function leaderboardFigure(rows, metric, cases, width) {
       gridcolor: '#dddce8',
       zerolinecolor: '#b4b0c5',
       fixedrange: true,
-      title: { text: compact ? 'Mean score' : 'Mean language-gated score', font: { size: compact ? 11 : 13 } },
+      title: { text: 'Mean score', font: { size: compact ? 11 : 13 } },
     },
     yaxis: { type: 'category', ticklabelstandoff: 9, showgrid: false, categoryorder: 'array', categoryarray: names, autorange: 'reversed', fixedrange: true },
     annotations: cases ? [] : [{

@@ -113,7 +113,6 @@ class BuildTests(unittest.TestCase):
         self.assertNotIn('id="slice-scores"', page)
         self.assertIn('<details class="score-method" id="score-method" tabindex="-1" open>', page)
         self.assertIn('id="source-plot"', page)
-        self.assertIn('Language-gated scores.', page)
         self.assertIn('<details class="case-details" open>', page)
         self.assertIn('eprint={2611.12750}', (source / 'narrativebench.bib').read_text())
 
@@ -124,7 +123,12 @@ class BuildTests(unittest.TestCase):
         finding = page[hero_end:capabilities].strip()
         self.assertTrue(finding.startswith('<a class="results-preview"'))
         self.assertIn("illusion of control", finding)
+        self.assertIn("illusion of knowledge", finding)
         self.assertIn('id="results-preview-table"', finding)
+        before, evaluation = page.split('<details class="score-method"', 1)
+        evaluation, after = evaluation.split("</details>", 1)
+        self.assertIn("Language-gated scoring", evaluation)
+        self.assertNotIn("language-gated", (before + after).lower())
 
     def test_map_regions_are_distinct_and_valid(self):
         self.assertEqual(build.topic_regions({"regions": [["Iran", 53, 32], ["U.S.", -98, 39]]}), [
