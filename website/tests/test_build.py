@@ -122,7 +122,11 @@ class BuildTests(unittest.TestCase):
         capabilities = page.index('<section class="capability-overview"')
         finding = page[hero_end:capabilities].strip()
         self.assertTrue(finding.startswith('<a class="results-preview"'))
-        self.assertRegex(finding, r'<h2[^>]*>[^\n]*<mark>illusion of knowledge and control</mark>[^\n]*</h2>')
+        self.assertRegex(
+            finding,
+            r'<h2[^>]*>The <mark>illusion of knowledge</mark> and <mark>control</mark></h2>'
+            r'\s*<p[^>]*>Models limit users’ agency to navigate narratives\.</p>',
+        )
         self.assertIn("illusion of control", finding)
         self.assertIn("illusion of knowledge", finding)
         self.assertIn('id="results-preview-table"', finding)
