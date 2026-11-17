@@ -1,0 +1,243 @@
+{
+  "date": "2026-11-17",
+  "rows": [
+    {
+      "model_id": "gemini-4-hydrogen-low",
+      "name": "Gemini 4 Hydrogen (Low)",
+      "tasks": {
+        "NI": {
+          "mean": 0.7243592923280423,
+          "cases": 960
+        },
+        "NE": {
+          "mean": 0.6833955882244304,
+          "cases": 960
+        },
+        "MNI": {
+          "mean": 0.771243235930736,
+          "cases": 960
+        },
+        "BP": {
+          "mean": 0.5613814108345357,
+          "cases": 960
+        },
+        "DP": {
+          "mean": 0.65877405002405,
+          "cases": 960
+        }
+      },
+      "higher_capabilities": {
+        "diversity_prompt_gain_pp": 9.739263918951425,
+        "confirmatory_absolute_gap_pp": 7.708675294612799,
+        "query_language_gap_pp": 8.769523190279854,
+        "target_language_gap_pp": 10.022617098710294
+      },
+      "language_violations": 35,
+      "token_limit_hits": 0
+    },
+    {
+      "model_id": "gemini-4-hydrogen-xhigh",
+      "name": "Gemini 4 Hydrogen (XHigh)",
+      "tasks": {
+        "NI": {
+          "mean": 0.8800571419321419,
+          "cases": 960
+        },
+        "NE": {
+          "mean": 0.8795039686252221,
+          "cases": 960
+        },
+        "MNI": {
+          "mean": 0.9632733585858586,
+          "cases": 960
+        },
+        "BP": {
+          "mean": 0.8032624984968736,
+          "cases": 960
+        },
+        "DP": {
+          "mean": 0.9104874639249639,
+          "cases": 960
+        }
+      },
+      "higher_capabilities": {
+        "diversity_prompt_gain_pp": 10.722496542809035,
+        "confirmatory_absolute_gap_pp": 6.3979114057238995,
+        "query_language_gap_pp": 9.287653189469937,
+        "target_language_gap_pp": 5.021999687985447
+      },
+      "language_violations": 34,
+      "token_limit_hits": 19
+    },
+    {
+      "model_id": "gemini-4-carbon-low",
+      "name": "Gemini 4 Carbon (Low)",
+      "tasks": {
+        "NI": {
+          "mean": 0.7807019600769601,
+          "cases": 960
+        },
+        "NE": {
+          "mean": 0.8440678367524898,
+          "cases": 960
+        },
+        "MNI": {
+          "mean": 0.8688993731962482,
+          "cases": 960
+        },
+        "BP": {
+          "mean": 0.7509940551346801,
+          "cases": 960
+        },
+        "DP": {
+          "mean": 0.8205815972222222,
+          "cases": 960
+        }
+      },
+      "higher_capabilities": {
+        "diversity_prompt_gain_pp": 6.958754208754215,
+        "confirmatory_absolute_gap_pp": 6.217209295334303,
+        "query_language_gap_pp": 7.552660166072619,
+        "target_language_gap_pp": 6.614776801190088
+      },
+      "language_violations": 4,
+      "token_limit_hits": 0
+    },
+    {
+      "model_id": "gemini-4-carbon-high",
+      "name": "Gemini 4 Carbon (High)",
+      "tasks": {
+        "NI": {
+          "mean": 0.7861331319143818,
+          "cases": 960
+        },
+        "NE": {
+          "mean": 0.8837782760942443,
+          "cases": 960
+        },
+        "MNI": {
+          "mean": 0.9078465833934585,
+          "cases": 960
+        },
+        "BP": {
+          "mean": 0.778041614057239,
+          "cases": 960
+        },
+        "DP": {
+          "mean": 0.8597348109066859,
+          "cases": 960
+        }
+      },
+      "higher_capabilities": {
+        "diversity_prompt_gain_pp": 8.169319684944687,
+        "confirmatory_absolute_gap_pp": 5.7047634078884135,
+        "query_language_gap_pp": 7.2617761055249535,
+        "target_language_gap_pp": 8.409463423322588
+      },
+      "language_violations": 0,
+      "token_limit_hits": 60
+    },
+    {
+      "model_id": "gemini-4-argon-low",
+      "name": "Gemini 4 Argon (Low)",
+      "tasks": {
+        "NI": {
+          "mean": 0.852883673039923,
+          "cases": 960
+        },
+        "NE": {
+          "mean": 0.8262797924674802,
+          "cases": 960
+        },
+        "MNI": {
+          "mean": 0.8906218058561809,
+          "cases": 960
+        },
+        "BP": {
+          "mean": 0.7547257169913419,
+          "cases": 960
+        },
+        "DP": {
+          "mean": 0.8224016579485329,
+          "cases": 960
+        }
+      },
+      "higher_capabilities": {
+        "diversity_prompt_gain_pp": 6.767594095719098,
+        "confirmatory_absolute_gap_pp": 6.3145818302068335,
+        "query_language_gap_pp": 10.041450282956763,
+        "target_language_gap_pp": 7.056268064978548
+      },
+      "language_violations": 22,
+      "token_limit_hits": 0
+    },
+    {
+      "model_id": "gemini-4-argon-high",
+      "name": "Gemini 4 Argon (High)",
+      "tasks": {
+        "NI": {
+          "mean": 0.9073412698412698,
+          "cases": 960
+        },
+        "NE": {
+          "mean": 0.8419199524122748,
+          "cases": 960
+        },
+        "MNI": {
+          "mean": 0.890284617003367,
+          "cases": 960
+        },
+        "BP": {
+          "mean": 0.7404626999158249,
+          "cases": 960
+        },
+        "DP": {
+          "mean": 0.8237782963564213,
+          "cases": 960
+        }
+      },
+      "higher_capabilities": {
+        "diversity_prompt_gain_pp": 8.331559644059638,
+        "confirmatory_absolute_gap_pp": 5.665088383838379,
+        "query_language_gap_pp": 6.804874641411141,
+        "target_language_gap_pp": 4.920300844780836
+      },
+      "language_violations": 12,
+      "token_limit_hits": 1
+    },
+    {
+      "model_id": "gemini-3.8-flash",
+      "name": "Gemini 3.8 Flash (reference)",
+      "tasks": {
+        "NI": {
+          "mean": 0.529015376984127,
+          "cases": 960
+        },
+        "NE": {
+          "mean": 0.6523730209484433,
+          "cases": 960
+        },
+        "MNI": {
+          "mean": 0.8283039096320347,
+          "cases": 960
+        },
+        "BP": {
+          "mean": 0.5778727377946128,
+          "cases": 960
+        },
+        "DP": {
+          "mean": 0.6873799753487254,
+          "cases": 960
+        }
+      },
+      "higher_capabilities": {
+        "diversity_prompt_gain_pp": 10.950723755411262,
+        "confirmatory_absolute_gap_pp": 10.094948743386256,
+        "query_language_gap_pp": 13.414391031847412,
+        "target_language_gap_pp": 10.96363963351612
+      },
+      "language_violations": 103,
+      "token_limit_hits": null
+    }
+  ]
+}
