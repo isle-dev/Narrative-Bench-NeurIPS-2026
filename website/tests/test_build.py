@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import re
 import tempfile
 import unittest
@@ -11,6 +12,19 @@ SPEC.loader.exec_module(build)
 
 
 class BuildTests(unittest.TestCase):
+    def test_followup_renders_all_configurations_and_preserves_task_denominators(self):
+        results = json.loads((build.HERE / "gemini4-results.json").read_text())
+        task_counts = dict.fromkeys(("NI", "NE", "MNI", "BP", "DP"), 960)
+        rendered = build.gemini_followup_rows(results, task_counts)
+        for name in ("Hydrogen (Low)", "Hydrogen (XHigh)", "Carbon (Low)", "Carbon (High)",
+                     "Argon (Low)", "Argon (High)", "Flash (reference)"):
+            self.assertIn(name, rendered)
+        self.assertEqual(rendered.count('<th scope="row">'), 7)
+        self.assertIn('>91.0%</td>', rendered)
+        self.assertIn('>—</td>', rendered)
+        with self.assertRaisesRegex(ValueError, "task counts differ"):
+            build.gemini_followup_rows(results, dict(task_counts, NI=959))
+
     def test_verifies_release_input_hashes(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "data.json"

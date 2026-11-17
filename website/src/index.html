@@ -288,6 +288,39 @@
         <h1>Full <mark>results</mark></h1>
         <p>Compare model performance across the information-seeking capabilities.</p>
       </header>
+      <section id="gemini4-results" class="paper-results followup-results" aria-labelledby="gemini4-results-title">
+        <header class="matrix-header">
+          <div>
+            <h2 id="gemini4-results-title">Gemini 4 follow-up</h2>
+            <p>November 17, 2026 · All topics and query languages · 4,800 cases per configuration</p>
+          </div>
+          <a href="./data/gemini4-results.json">Download scores</a>
+        </header>
+        <div class="matrix-scroll" tabindex="0" role="region" aria-label="Gemini 4 scores, scroll horizontally for more measures">
+          <table>
+            <caption class="sr-only">Gemini 4 and Gemini 3.8 Flash reference scores on NarrativeBench</caption>
+            <thead>
+              <tr>
+                <th scope="col">Model and reasoning</th>
+                <th scope="col" class="number">Include F1</th>
+                <th scope="col" class="number">Exclude F1</th>
+                <th scope="col" class="number">Missing narrative recall</th>
+                <th scope="col" class="number">Baseline prompt recall</th>
+                <th scope="col" class="number">Diverse prompt recall</th>
+                <th scope="col" class="number">Framing gap</th>
+                <th scope="col" class="number">Query-language gap</th>
+                <th scope="col" class="number">Target narrative-language gap</th>
+                <th scope="col" class="number">Language violations</th>
+                <th scope="col" class="number">Reached token limit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- gemini4-results-rows -->
+            </tbody>
+          </table>
+        </div>
+        <p class="matrix-note">Gaps are in percentage points. Counts include all 960 cases per task, with zero for empty answers and partial answers scored as returned. Gemini 3.8 Flash is a reference using saved responses rescored with the same automatic language check. Token-limit counts are available for the Gemini 4 runs.</p>
+      </section>
       <div class="ranking-controls">
         <div>
           <label for="metric">Rank by</label>

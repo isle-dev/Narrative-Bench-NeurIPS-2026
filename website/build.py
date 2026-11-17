@@ -8,6 +8,7 @@ import sys
 import tempfile
 import time
 from collections import Counter, defaultdict
+from html import escape
 from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlsplit
@@ -127,6 +128,28 @@ def write_json(path, data):
     with path.open("w", encoding="utf-8") as stream:
         json.dump(data, stream, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
         stream.write("\n")
+
+
+def gemini_followup_rows(results, task_counts):
+    tasks = ("NI", "NE", "MNI", "BP", "DP")
+    gaps = ("confirmatory_absolute_gap_pp", "query_language_gap_pp", "target_language_gap_pp")
+    rows = []
+    for row in index_rows(results["rows"], "model_id").values():
+        scores = row["tasks"]
+        if {task: stats["cases"] for task, stats in scores.items()} != task_counts:
+            raise ValueError(f"Follow-up task counts differ from the release: {row['model_id']}")
+        means = [scores[task]["mean"] for task in tasks]
+        differences = [row["higher_capabilities"][gap] for gap in gaps]
+        with_limits = (row["language_violations"], row["token_limit_hits"])
+        if (not all(0 <= value <= 1 for value in means)
+                or not all(0 <= value <= 100 for value in differences)
+                or not all(value is None or 0 <= value <= sum(task_counts.values()) for value in with_limits)):
+            raise ValueError(f"Invalid follow-up results: {row['model_id']}")
+        cells = [f"{value:.1%}" for value in means] + [f"{value:.2f}" for value in differences]
+        cells += ["—" if value is None else f"{value:,}" for value in with_limits]
+        values = "".join(f'<td class="number">{value}</td>' for value in cells)
+        rows.append(f'<tr><th scope="row">{escape(row["name"])}</th>{values}</tr>')
+    return "\n              ".join(rows)
 
 
 def copy_browser_libraries(site):
@@ -363,10 +386,15 @@ def build_site(release, output):
 
     paper = json.loads((HERE / "paper-results.json").read_text(encoding="utf-8"))
     validate_paper_results(paper, models_view, aggregate["diagnostics"])
+    followup = json.loads((HERE / "gemini4-results.json").read_text(encoding="utf-8"))
+    followup_rows = gemini_followup_rows(followup, counts)
 
     with tempfile.TemporaryDirectory(dir=output.parent) as stage:
         site = Path(stage) / "site"
         shutil.copytree(HERE / "src", site)
+        page = site / "index.html"
+        page.write_text(page.read_text(encoding="utf-8").replace("<!-- gemini4-results-rows -->", followup_rows),
+                        encoding="utf-8")
         copy_browser_libraries(site)
         data = site / "data"
         (data / "topics").mkdir(parents=True)
@@ -417,6 +445,7 @@ def build_site(release, output):
         del rankings["all"]["all"]
         write_json(data / "rankings.json", rankings)
         write_json(data / "paper-results.json", paper)
+        write_json(data / "gemini4-results.json", followup)
         write_json(data / "source-omissions.json", aggregate["sourceOmissions"])
         write_json(data / "catalog.json", {
             "topics": catalog_topics, "languages": languages, "models": models_view,
