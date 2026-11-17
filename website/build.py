@@ -129,65 +129,6 @@ def write_json(path, data):
         stream.write("\n")
 
 
-def followup_ranking_rows(rows, models, cases, topics, source_languages):
-    seen = set()
-    for row in rows:
-        case_id, model = row["case_id"], row["model_id"]
-        if case_id not in cases or model not in models or (case_id, model) in seen:
-            raise ValueError(f"Unknown or duplicate follow-up result: {case_id} {model}")
-        seen.add((case_id, model))
-        case = cases[case_id]
-        available = set(source_languages.get(case_id, {}).values())
-        omitted = set(row["omitted_languages"])
-        language = row["language_status"]
-        value = row["score"]
-        if (not omitted <= available or language not in LANGUAGE_STATUSES or not 0 <= value <= 1
-                or (language not in {"same", "unknown"} and value != 0)):
-            raise ValueError(f"Invalid follow-up result: {case_id} {model}")
-        yield {
-            "case_id": case_id, "model_id": model, "task": case["task"], "score": value,
-            "language_status": language, "source_languages": available, "omitted_languages": omitted,
-            "topic": topics[case["topic"]]["id"], "query_language": case["query_language"],
-        }
-    if len(seen) != len(cases) * len(models):
-        raise ValueError("Follow-up scores must cover every configuration and case")
-
-
-def combined_results_matrix(paper, aggregate, followup):
-    rows = [
-        {"id": row["id"], "name": row["name"], "cells": [dict(cell) for cell in row["cells"]]}
-        for row in paper["rows"]
-    ]
-    for model, result in followup.items():
-        cells = []
-        scores = aggregate["scores"][model]
-        diagnostics = aggregate["diagnostics"][model]
-        if ({task: value["cases"] for task, value in result["tasks"].items()} != aggregate["counts"]
-                or any(abs(scores[task] - stats["mean"]) > 1e-12 for task, stats in result["tasks"].items())
-                or any(abs(diagnostics[key] - result["higher_capabilities"][key]) > 1e-10 for key in (
-                    "confirmatory_absolute_gap_pp", "query_language_gap_pp", "target_language_gap_pp"))
-                or diagnostics["language_violations"] != result["language_violations"]):
-            raise ValueError(f"Follow-up scores do not match the verified summary: {model}")
-        for column in paper["columns"]:
-            task = column["task"]
-            if task:
-                value = scores[task] * 100
-                display = f"{int(value * 10 + 0.5) / 10:.1f}"
-            else:
-                value = diagnostics[column["diagnostic"]]
-                display = f"{value:.{column['decimals']}f}"
-            cells.append({"value": value, "display": display})
-        rows.append({"id": model, "name": result["name"], "cells": cells})
-    bins = len(paper["palette"])
-    for index, column in enumerate(paper["columns"]):
-        cells = [row["cells"][index] for row in rows]
-        distances = [100 - cell["value"] if column["task"] else cell["value"] for cell in cells]
-        worst = max(distances)
-        for cell, distance in zip(cells, distances):
-            cell["bin"] = min(bins - 1, int(distance / worst * bins)) if worst else 0
-    return {**paper, "rows": rows}
-
-
 def copy_browser_libraries(site):
     libraries = {
         "d3-array": ("dist/d3-array.min.js", "d3-array.js"),
@@ -413,32 +354,15 @@ def build_site(release, output):
     if any(set(responses[case_id]) != set(models) for case_id in cases):
         raise ValueError("Each evaluation case must have all model configurations")
 
-    followup_summary = json.loads((HERE / "gemini4-results.json").read_text(encoding="utf-8"))
-    followup = {
-        row["model_id"]: row for row in index_rows(followup_summary["rows"], "model_id").values()
-        if row["token_limit_hits"] is not None
-    }
-    if not followup or followup.keys() & models.keys():
-        raise ValueError("Follow-up models must have distinct identifiers")
-    followup_cases = list(parquet_rows(HERE / "gemini4-case-scores.parquet"))
-    limit_hits = Counter(row["model_id"] for row in followup_cases if row["token_limit_hit"])
-    if any(limit_hits[model] != row["token_limit_hits"] for model, row in followup.items()):
-        raise ValueError("Follow-up token-limit counts do not match the verified summary")
-    ranking_rows = summary_rows + list(followup_ranking_rows(followup_cases, followup, cases, topics, source_languages))
-    rankings = ranking_slices(ranking_rows, cases, documents)
+    rankings = ranking_slices(summary_rows, cases, documents)
     aggregate = rankings["all"]["all"]
     counts = aggregate["counts"]
     models_view = [
         {"id": model, "name": name, "scores": aggregate["scores"][model]} for model, name in models.items()
     ]
-    ranking_models = models_view + [
-        {"id": model, "name": result["name"], "scores": aggregate["scores"][model]}
-        for model, result in followup.items()
-    ]
 
     paper = json.loads((HERE / "paper-results.json").read_text(encoding="utf-8"))
     validate_paper_results(paper, models_view, aggregate["diagnostics"])
-    matrix = combined_results_matrix(paper, aggregate, followup)
 
     with tempfile.TemporaryDirectory(dir=output.parent) as stage:
         site = Path(stage) / "site"
@@ -493,19 +417,16 @@ def build_site(release, output):
         del rankings["all"]["all"]
         write_json(data / "rankings.json", rankings)
         write_json(data / "paper-results.json", paper)
-        write_json(data / "results-matrix.json", matrix)
-        write_json(data / "gemini4-results.json", followup_summary)
         write_json(data / "source-omissions.json", aggregate["sourceOmissions"])
         write_json(data / "catalog.json", {
             "topics": catalog_topics, "languages": languages, "models": models_view,
-            "rankingModels": ranking_models,
             "counts": {"queries": len(queries), "cases": len(cases), "responses": len(summary_rows), "tasks": counts},
             "revision": LOCK["revision"],
         })
         version_browser_assets(site)
         (site / ".nojekyll").touch()
         site.rename(output)
-    print(f"Built {len(topics)} topics, {len(queries)} queries, {len(cases)} cases and {len(ranking_rows)} verified scores.")
+    print(f"Built {len(topics)} topics, {len(queries)} queries, {len(cases)} cases and {len(summary_rows)} verified responses.")
 
 
 def main():

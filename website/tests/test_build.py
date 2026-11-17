@@ -1,5 +1,4 @@
 import importlib.util
-import json
 import re
 import tempfile
 import unittest
@@ -12,22 +11,6 @@ SPEC.loader.exec_module(build)
 
 
 class BuildTests(unittest.TestCase):
-    def test_followup_requires_the_same_cases_and_valid_omissions(self):
-        cases = {"case-1": {"task": "DP", "topic": "Gaza", "query_language": "ar"}}
-        topics = {"Gaza": {"id": "gaza"}}
-        languages = {"case-1": {"D0001": "Arabic", "D0002": "English"}}
-        row = {"case_id": "case-1", "model_id": "gemini-4", "score": 0.5,
-               "language_status": "same", "omitted_languages": ["English"]}
-        results = list(build.followup_ranking_rows([row], {"gemini-4"}, cases, topics, languages))
-        self.assertEqual(results[0]["topic"], "gaza")
-        self.assertEqual(results[0]["source_languages"], {"Arabic", "English"})
-        self.assertEqual(results[0]["omitted_languages"], {"English"})
-        with self.assertRaisesRegex(ValueError, "every configuration and case"):
-            list(build.followup_ranking_rows([row], {"gemini-4", "other-model"}, cases, topics, languages))
-        with self.assertRaisesRegex(ValueError, "Invalid follow-up"):
-            list(build.followup_ranking_rows([dict(row, omitted_languages=["French"])],
-                                            {"gemini-4"}, cases, topics, languages))
-
     def test_verifies_release_input_hashes(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "data.json"
