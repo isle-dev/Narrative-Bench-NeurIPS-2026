@@ -106,7 +106,7 @@ function renderPaperResults() {
   const activeColumn = paperSortColumn(matrix, paperSort, metric);
   options($('paper-sort'), [
     ['ranking', 'Follow Rank by'],
-    ['paper', 'Release order'],
+    ['paper', 'Paper order'],
     ...matrix.columns.map((column, index) => [String(index), column.description]),
   ], paperSort);
   const table = element('table');
@@ -136,7 +136,7 @@ function renderPaperResults() {
 async function renderResultsPreview() {
   if (!$('results-preview-table').hidden) return;
   try {
-    paper ??= await data('results-matrix');
+    paper ??= await data('paper-results');
   } catch {
     return;
   }
@@ -215,8 +215,8 @@ async function renderLeaderboard(route, run) {
   const topics = sortedTopics();
   const topic = topics.some(item => item.id === route.topic) ? route.topic : 'all';
   const lang = Object.hasOwn(catalog.languages, route.lang) ? route.lang : 'all';
-  const sourceModel = catalog.rankingModels.find(model => model.id === route.sourceModel);
-  const modelOptions = catalog.rankingModels.map(({ id, name }) => [id, name]).sort((a, b) => a[1].localeCompare(b[1]));
+  const sourceModel = catalog.models.find(model => model.id === route.sourceModel);
+  const modelOptions = catalog.models.map(({ id, name }) => [id, name]).sort((a, b) => a[1].localeCompare(b[1]));
   options($('source-model'), [['', 'All model configurations'], ...modelOptions], sourceModel?.id ?? '');
   options($('rank-topic'), [['all', 'All topics'], ...topics.map(item => [item.id, item.label])], topic);
   options($('rank-language'), [['all', 'All query languages'], ...sortedLanguages()], lang);
@@ -230,7 +230,7 @@ async function renderLeaderboard(route, run) {
   const key = `${topic}/${lang}`;
   const filtered = topic !== 'all' || lang !== 'all';
   const [results, slices, omissions] = await Promise.all([
-    paper ?? data('results-matrix'), filtered ? data('rankings') : null, filtered ? null : data('source-omissions'),
+    paper ?? data('paper-results'), filtered ? data('rankings') : null, filtered ? null : data('source-omissions'),
   ]);
   if (run !== renderId) return;
   paper = results;
@@ -256,7 +256,7 @@ async function renderLeaderboard(route, run) {
   if (rankingChanged) {
     rankingKey = rankKey;
     const selection = sliceRanking(catalog, slices, topic, lang, metric);
-    ranking = selection?.rows ?? catalog.rankingModels.map(model => ({ ...model, value: null, rank: null }));
+    ranking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
     const cases = selection?.counts[metric] ?? 0;
     $('score-note').textContent =
       `${measure.description} · ${measure.metric} · ${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model`;
