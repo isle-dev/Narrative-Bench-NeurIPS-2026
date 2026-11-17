@@ -12,18 +12,21 @@ SPEC.loader.exec_module(build)
 
 
 class BuildTests(unittest.TestCase):
-    def test_followup_renders_all_configurations_and_preserves_task_denominators(self):
-        results = json.loads((build.HERE / "gemini4-results.json").read_text())
-        task_counts = dict.fromkeys(("NI", "NE", "MNI", "BP", "DP"), 960)
-        rendered = build.gemini_followup_rows(results, task_counts)
-        for name in ("Hydrogen (Low)", "Hydrogen (XHigh)", "Carbon (Low)", "Carbon (High)",
-                     "Argon (Low)", "Argon (High)", "Flash (reference)"):
-            self.assertIn(name, rendered)
-        self.assertEqual(rendered.count('<th scope="row">'), 7)
-        self.assertIn('>91.0%</td>', rendered)
-        self.assertIn('>—</td>', rendered)
-        with self.assertRaisesRegex(ValueError, "task counts differ"):
-            build.gemini_followup_rows(results, dict(task_counts, NI=959))
+    def test_followup_requires_the_same_cases_and_valid_omissions(self):
+        cases = {"case-1": {"task": "DP", "topic": "Gaza", "query_language": "ar"}}
+        topics = {"Gaza": {"id": "gaza"}}
+        languages = {"case-1": {"D0001": "Arabic", "D0002": "English"}}
+        row = {"case_id": "case-1", "model_id": "gemini-4", "score": 0.5,
+               "language_status": "same", "omitted_languages": ["English"]}
+        results = list(build.followup_ranking_rows([row], {"gemini-4"}, cases, topics, languages))
+        self.assertEqual(results[0]["topic"], "gaza")
+        self.assertEqual(results[0]["source_languages"], {"Arabic", "English"})
+        self.assertEqual(results[0]["omitted_languages"], {"English"})
+        with self.assertRaisesRegex(ValueError, "every configuration and case"):
+            list(build.followup_ranking_rows([row], {"gemini-4", "other-model"}, cases, topics, languages))
+        with self.assertRaisesRegex(ValueError, "Invalid follow-up"):
+            list(build.followup_ranking_rows([dict(row, omitted_languages=["French"])],
+                                            {"gemini-4"}, cases, topics, languages))
 
     def test_verifies_release_input_hashes(self):
         with tempfile.TemporaryDirectory() as folder:

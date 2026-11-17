@@ -480,10 +480,6 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .matrix-legend li:nth-child(5) { background: #cb181d; color: var(--sheet); }
 .matrix-scroll-hint { margin-inline-start: auto; color: var(--muted); }
 .matrix-scroll { overflow-x: auto; margin-top: .8rem; position: relative; }
-.followup-results { margin-bottom: 1.25rem; }
-.followup-results table { min-width: 68rem; font-size: .86rem; }
-.followup-results thead th { white-space: normal; vertical-align: bottom; }
-.followup-results tbody th { white-space: nowrap; }
 #paper-matrix, #paper-fallback table { min-width: 1600px; }
 #paper-fallback thead th { white-space: normal; padding-block: .85rem; }
 #paper-fallback thead th[aria-sort] { background: var(--highlight); color: var(--accent); }

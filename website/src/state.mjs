@@ -54,11 +54,12 @@ export function rankedRows(models, metric) {
 }
 
 export function sliceRanking(catalog, slices, topic, lang, metric) {
+  const rankingModels = catalog.rankingModels ?? catalog.models;
   if (topic === 'all' && lang === 'all') {
-    return { rows: rankedRows(catalog.models, metric), counts: catalog.counts.tasks };
+    return { rows: rankedRows(rankingModels, metric), counts: catalog.counts.tasks };
   }
   const slice = slices?.[topic]?.[lang];
   if (!slice?.counts[metric]) return null;
-  const models = catalog.models.map(model => ({ ...model, scores: slice.scores[model.id] }));
+  const models = rankingModels.map(model => ({ ...model, scores: slice.scores[model.id] }));
   return { rows: rankedRows(models, metric), counts: slice.counts };
 }
