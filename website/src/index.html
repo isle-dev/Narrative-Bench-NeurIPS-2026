@@ -74,7 +74,7 @@
           <h2 id="results-preview-title">The <mark>illusion of knowledge</mark> and <mark>control</mark></h2>
           <p class="results-preview-lead">Models limit users’ agency to navigate narratives.</p>
           <p>Models struggle to follow requests to include, exclude, or recover specific narratives. An answer that appears to follow the request can create an <strong>illusion of control</strong>. When the answer also looks complete, users may think they have seen all the relevant narratives, creating an <strong>illusion of knowledge</strong>.</p>
-          <p>Even with an explicit request for diversity, the strongest model configuration covered only <strong>about three quarters of available narratives</strong>. Narrative access also varied with query framing and language.</p>
+          <p>In the paper, the strongest model configuration covered <strong>about three quarters of available narratives</strong> when asked for diversity. Narrative access also varied with query framing and language.</p>
           <span class="results-preview-action" id="results-preview-action">View full results <span aria-hidden="true">→</span></span>
         </div>
         <table id="results-preview-table" hidden>
@@ -288,39 +288,6 @@
         <h1>Full <mark>results</mark></h1>
         <p>Compare model performance across the information-seeking capabilities.</p>
       </header>
-      <section id="gemini4-results" class="paper-results followup-results" aria-labelledby="gemini4-results-title">
-        <header class="matrix-header">
-          <div>
-            <h2 id="gemini4-results-title">Gemini 4 follow-up</h2>
-            <p>November 17, 2026 · All topics and query languages · 4,800 cases per configuration</p>
-          </div>
-          <a href="./data/gemini4-results.json">Download scores</a>
-        </header>
-        <div class="matrix-scroll" tabindex="0" role="region" aria-label="Gemini 4 scores, scroll horizontally for more measures">
-          <table>
-            <caption class="sr-only">Gemini 4 and Gemini 3.8 Flash reference scores on NarrativeBench</caption>
-            <thead>
-              <tr>
-                <th scope="col">Model and reasoning</th>
-                <th scope="col" class="number">Include F1</th>
-                <th scope="col" class="number">Exclude F1</th>
-                <th scope="col" class="number">Missing narrative recall</th>
-                <th scope="col" class="number">Baseline prompt recall</th>
-                <th scope="col" class="number">Diverse prompt recall</th>
-                <th scope="col" class="number">Framing gap</th>
-                <th scope="col" class="number">Query-language gap</th>
-                <th scope="col" class="number">Target narrative-language gap</th>
-                <th scope="col" class="number">Language violations</th>
-                <th scope="col" class="number">Reached token limit</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- gemini4-results-rows -->
-            </tbody>
-          </table>
-        </div>
-        <p class="matrix-note">Gaps are in percentage points. Counts include all 960 cases per task, with zero for empty answers and partial answers scored as returned. Gemini 3.8 Flash is a reference using saved responses rescored with the same automatic language check. Token-limit counts are available for the Gemini 4 runs.</p>
-      </section>
       <div class="ranking-controls">
         <div>
           <label for="metric">Rank by</label>
@@ -339,7 +306,7 @@
         <header class="matrix-header">
           <div>
             <h2 id="paper-results-title">Exact scores</h2>
-            <p><a href="https://arxiv.org/pdf/2611.12750v1#page=7" target="_blank" rel="noopener noreferrer">Table 1</a> · <span id="score-scope">All topics · All query languages</span></p>
+            <p><a href="https://arxiv.org/pdf/2611.12750v1#page=7" target="_blank" rel="noopener noreferrer">Paper (Table 1)</a> and Gemini 4 follow-up · <span id="score-scope">All topics · All query languages</span></p>
           </div>
           <div>
             <label for="paper-sort">Sort rows by</label>
@@ -381,8 +348,8 @@
         </dl>
         <p>Recall is the share of required narratives covered. F1 balances recall with precision, the share of cited narratives that match the task. Displayed ties share a rank.</p>
         <p><strong>Language-gated scoring.</strong> The scorer checks whether the answer is in the language of the question. Answers identified as different-language or mixed-language receive zero. Answers with an uncertain classification proceed to citation-based scoring. Cited articles can be in any language. The language violations column counts different-language and mixed-language answers.</p>
-        <p>The unfiltered scores reproduce <a href="https://arxiv.org/pdf/2611.12750v1#page=7" target="_blank" rel="noopener noreferrer">Table 1 in the paper</a>, including standard errors in parentheses. Filtered cells show point estimates. For a selected non-English query language, the query-language score gap compares its mean score with English within the same topic scope. Framing and target narrative-language gaps require cases in both comparison groups. Score gaps are reported in percentage points.</p>
-        <p><a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026/blob/main/EVALUATION.md">Evaluation documentation</a></p>
+        <p>Unfiltered paper rows include the standard errors from <a href="https://arxiv.org/pdf/2611.12750v1#page=7" target="_blank" rel="noopener noreferrer">Table 1</a>. Gemini 4 rows and filtered results show point estimates. The November 17, 2026 follow-up uses the same 4,800 cases per configuration. Its scores include 80 responses that reached the token limit. For a selected non-English query language, the query-language score gap compares its mean score with English within the same topic scope. Framing and target narrative-language gaps require cases in both comparison groups. Score gaps are reported in percentage points.</p>
+        <p><a href="https://github.com/isle-dev/Narrative-Bench-NeurIPS-2026/blob/main/EVALUATION.md">Evaluation documentation</a> · <a href="./data/gemini4-results.json">Download Gemini 4 scores</a></p>
       </details>
       <section class="source-results" aria-labelledby="source-title">
         <header>
