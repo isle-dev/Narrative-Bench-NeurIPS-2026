@@ -65,3 +65,13 @@ test('query scroll guidance tracks visible rows and disappears when all fit', as
   assert.deepEqual(queryScrollState(rows, 120, 270, 150), { first: 3, last: 5, max: 150, position: 150, atEnd: true });
   assert.equal(queryScrollState(rows, 300, 300, 0).max, 0);
 });
+
+
+test('partial and unavailable runs retain their real denominators', () => {
+  const catalog = {models: [{id:'a',name:'A',scores:{NI:.7},counts:{NI:2}}, {id:'b',name:'B',scores:{},counts:{}}], counts:{tasks:{NI:2}}};
+  const rows = sliceRanking(catalog,null,'all','all','NI').rows;
+  assert.equal(rows[0].id,'a');
+  assert.equal(rows[0].cases,2);
+  assert.equal(rows[1].value,null);
+  assert.equal(rows[1].rank,null);
+});

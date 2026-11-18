@@ -1,11 +1,11 @@
 const DEFAULT_TASK = 'DP';
-const EXPLORER_PARAMS = ['topic', 'lang', 'query', 'task', 'left', 'right', 'pins', 'scope', 'mapLang'];
+const EXPLORER_PARAMS = ['topic', 'lang', 'query', 'task', 'left', 'right', 'pins', 'scope', 'mapLang', 'benchmark'];
 
 export function parseRoute(hash) {
   const [name, search] = hash.slice(1).split('?');
   const params = new URLSearchParams(search);
   const route = { page: name === 'leaderboard' ? 'leaderboard' : 'explorer' };
-  const keys = name === 'leaderboard' ? ['metric', 'topic', 'lang', 'sourceModel'] : name === 'explore' ? EXPLORER_PARAMS : [];
+  const keys = name === 'leaderboard' ? ['metric', 'topic', 'lang', 'sourceModel', 'benchmark'] : name === 'explore' ? EXPLORER_PARAMS : [];
   for (const key of keys) {
     if (params.has(key)) route[key] = params.get(key);
   }
@@ -43,13 +43,13 @@ export function resolveSelection(queries, route) {
 }
 
 export function rankedRows(models, metric) {
-  const rows = models.map(model => ({ ...model, value: Math.round(model.scores[metric] * 1000) }))
-    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
-  return rows.map((row, index) => ({
-    ...row,
-    rank: index > 0 && row.value === rows[index - 1].value
-      ? rows.findIndex(other => other.value === row.value) + 1
-      : index + 1,
+  const rows = models.map(model => ({ ...model,
+    value: model.scores?.[metric] == null ? null : Math.round(model.scores[metric] * 1000),
+    cases: model.counts?.[metric],
+  })).sort((a, b) => (a.value == null) - (b.value == null) || (b.value ?? 0) - (a.value ?? 0) || a.name.localeCompare(b.name));
+  return rows.map((row, index) => ({ ...row,
+    rank: row.value == null ? null : index > 0 && row.value === rows[index - 1].value
+      ? rows.findIndex(other => other.value === row.value) + 1 : index + 1,
   }));
 }
 
@@ -59,6 +59,6 @@ export function sliceRanking(catalog, slices, topic, lang, metric) {
   }
   const slice = slices?.[topic]?.[lang];
   if (!slice?.counts[metric]) return null;
-  const models = catalog.models.map(model => ({ ...model, scores: slice.scores[model.id] }));
+  const models = catalog.models.map(model => ({ ...model, scores: slice.scores[model.id] ?? {}, counts: slice.modelCounts?.[model.id] ?? {} }));
   return { rows: rankedRows(models, metric), counts: slice.counts };
 }

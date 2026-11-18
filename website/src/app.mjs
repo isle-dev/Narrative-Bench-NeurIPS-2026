@@ -17,7 +17,7 @@ const LANGUAGE_STATUS = {
   unknown: 'Language uncertain',
 };
 const DEFAULT_TOPIC = 'gaza';
-const DEFAULT_MODELS = ['gemini', 'gpt-5.4-mini'];
+const DEFAULT_MODELS = ['gemini-4-hydrogen-xhigh', 'gemini-4-argon-low'];
 const $ = id => document.getElementById(id);
 const number = new Intl.NumberFormat('en');
 const percent = value => `${(Math.round(value * 1000) / 10).toFixed(1)}%`;
@@ -35,6 +35,8 @@ let ranking;
 let sourceKey;
 let paperSort = 'ranking';
 let catalog;
+let activeBenchmark;
+let originalPaper;
 let map;
 let mapSelection;
 let activeQuery;
@@ -58,6 +60,10 @@ function data(path) {
     if (cache.size > 32) cache.delete(cache.keys().next().value);
   }
   return cache.get(path);
+}
+
+function datasetData(path) {
+  return data((activeBenchmark === 'hard' ? 'hard/' : '') + path);
 }
 
 function element(tag, text, className) {
@@ -106,7 +112,7 @@ function renderPaperResults() {
   const activeColumn = paperSortColumn(matrix, paperSort, metric);
   options($('paper-sort'), [
     ['ranking', 'Follow Rank by'],
-    ['paper', 'Paper order'],
+    ['paper', activeBenchmark === 'hard' ? 'Model order' : 'Published order, then follow-up runs'],
     ...matrix.columns.map((column, index) => [String(index), column.description]),
   ], paperSort);
   const table = element('table');
@@ -136,12 +142,12 @@ function renderPaperResults() {
 async function renderResultsPreview() {
   if (!$('results-preview-table').hidden) return;
   try {
-    paper ??= await data('paper-results');
+    originalPaper ??= await data('paper-results');
   } catch {
     return;
   }
   const body = $('results-preview-rows');
-  body.replaceChildren(...paperResultsPreview(paper).map(({ measure, name, score }) => {
+  body.replaceChildren(...paperResultsPreview(originalPaper).map(({ measure, name, score }) => {
     const row = element('tr');
     const heading = element('th', measure);
     heading.scope = 'row';
@@ -183,7 +189,7 @@ function renderSourceOmissions(data, pooled, label) {
 }
 
 async function updateSourceOmissions(topic, lang, model, pooled, run) {
-  const key = `${topic}/${lang}/${model?.id ?? ''}`;
+  const key = `${activeBenchmark}/${topic}/${lang}/${model?.id ?? ''}`;
   const status = $('source-status');
   if (status.hasAttribute('data-model-error')) {
     status.hidden = true;
@@ -193,7 +199,7 @@ async function updateSourceOmissions(topic, lang, model, pooled, run) {
   let counts = pooled;
   if (model) {
     try {
-      const slices = await data(`source-omissions/${model.id}`);
+      const slices = await datasetData(`source-omissions/${model.id}`);
       counts = slices[topic]?.[lang];
     } catch {
       if (run !== renderId) return;
@@ -223,14 +229,14 @@ async function renderLeaderboard(route, run) {
   const hash = hashFor({
     page: 'leaderboard', metric: metric === 'NI' ? undefined : metric,
     topic: topic === 'all' ? undefined : topic, lang: lang === 'all' ? undefined : lang,
-    sourceModel: sourceModel?.id,
+    sourceModel: sourceModel?.id, benchmark: activeBenchmark === 'hard' ? 'hard' : undefined,
   });
   history.replaceState(null, '', hash);
   $('nav-leaderboard').href = hash;
-  const key = `${topic}/${lang}`;
+  const key = `${activeBenchmark}/${topic}/${lang}`;
   const filtered = topic !== 'all' || lang !== 'all';
   const [results, slices, omissions] = await Promise.all([
-    paper ?? data('paper-results'), filtered ? data('rankings') : null, filtered ? null : data('source-omissions'),
+    paper ?? datasetData('paper-results'), filtered ? datasetData('rankings') : null, filtered ? null : datasetData('source-omissions'),
   ]);
   if (run !== renderId) return;
   paper = results;
@@ -259,7 +265,9 @@ async function renderLeaderboard(route, run) {
     ranking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
     const cases = selection?.counts[metric] ?? 0;
     $('score-note').textContent =
-      `${measure.description} · ${measure.metric} · ${number.format(ranking.length)} model configurations · ${number.format(cases)} evaluated ${cases === 1 ? 'case' : 'cases'} per model`;
+      `${measure.description} · ${measure.metric} · ${number.format(ranking.length)} model configurations · ${
+        [...new Set(ranking.map(row => row.cases ?? cases).filter(Boolean))].sort((a,b) => a-b).map(number.format).join('–')
+      } evaluated cases per model`;
     plotRanking(ranking, `${measure.description} (${measure.metric})`, cases);
   }
   if (matrixChanged || (rankingChanged && paperSort === 'ranking')) renderPaperResults();
@@ -362,6 +370,11 @@ function showDatasetAnswerStatus(query, lang) {
 }
 
 function renderAnswer(container, response, lang) {
+  if (!response) {
+    container.replaceChildren(element('p', 'This request failed during inference. A response is unavailable for this case.', 'muted'));
+    currentResponses.delete(container);
+    return;
+  }
   if (currentResponses.get(container) === response) return;
   const score = element('strong', `Score ${percent(response.score)}`);
   const meta = element('p', undefined, 'answer-meta');
@@ -491,11 +504,12 @@ for (const button of document.querySelectorAll('[data-pins]')) {
   if (!caseId) $('task').append(new Option('No recorded evaluation', ''));
 
   const modelIds = new Set(catalog.models.map(model => model.id));
-  const left = modelIds.has(route.left) ? route.left : DEFAULT_MODELS[0];
-  const right = modelIds.has(route.right) ? route.right : DEFAULT_MODELS[1];
+  const left = modelIds.has(route.left) ? route.left : modelIds.has(DEFAULT_MODELS[0]) ? DEFAULT_MODELS[0] : catalog.models[0].id;
+  const right = modelIds.has(route.right) ? route.right : modelIds.has(DEFAULT_MODELS[1]) ? DEFAULT_MODELS[1] : catalog.models.at(-1).id;
   const resolved = {
     page: 'explorer', topic: topic.id, lang, query: query?.id, task, left, right,
     pins: mode === 'both' ? undefined : mode, scope: scope === 'benchmark' ? undefined : scope, mapLang,
+    benchmark: activeBenchmark === 'hard' ? 'hard' : undefined,
   };
   const hash = hashFor(resolved);
   history.replaceState(null, '', hash);
@@ -513,7 +527,7 @@ for (const button of document.querySelectorAll('[data-pins]')) {
   let item;
   let sources;
   try {
-    [item, sources] = await Promise.all([data(`cases/${caseId}`), data('sources')]);
+    [item, sources] = await Promise.all([datasetData(`cases/${caseId}`), data('sources')]);
   } catch {
     if (renderId === run) setAnswerStatus('The recorded answers could not load.', true);
     return;
@@ -551,7 +565,21 @@ async function render() {
   }
   lastPage = route.page;
   try {
-    catalog ??= await data('catalog');
+    const benchmark = route.benchmark === 'hard' ? 'hard' : 'original';
+    if (activeBenchmark !== benchmark) {
+      const next = await data(benchmark === 'hard' ? 'hard/catalog' : 'catalog');
+      if (run !== renderId) return;
+      activeBenchmark = benchmark;
+      catalog = next;
+      paper = undefined;
+      matrixKey = undefined;
+      rankingKey = undefined;
+      sourceKey = undefined;
+      loadedCase = undefined;
+      for (const select of document.querySelectorAll('[data-benchmark]')) select.value = benchmark;
+    }
+    $('hard-description').hidden = benchmark !== 'hard';
+    $('results-cohort').textContent = benchmark === 'hard' ? 'Full Hard · three configurations' : 'Published evaluations and six Gemini 4 configurations';
     if (run !== renderId) return;
     if (explorer) {
       void renderResultsPreview();
@@ -591,6 +619,9 @@ $('paper-sort').addEventListener('change', event => {
   paperSort = event.target.value;
   renderPaperResults();
 });
+for (const select of document.querySelectorAll('[data-benchmark]')) {
+  select.addEventListener('change', event => changeRoute({ benchmark: event.target.value === 'hard' ? 'hard' : undefined }));
+}
 $('metric').addEventListener('change', event => {
   paperSort = 'ranking';
   changeRoute({ metric: event.target.value });
@@ -655,3 +686,5 @@ try {
 } finally {
   $('map-loading').hidden = true;
 }
+
+void import('./language-disparities.mjs').catch(() => { $('disparity-status').textContent = 'Language charts could not load. The scores remain available in the table.'; });

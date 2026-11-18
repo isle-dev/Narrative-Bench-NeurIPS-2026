@@ -1,0 +1,126 @@
+{
+  "date": "2026-11-18",
+  "hard_evaluation": {
+    "file": "hard-evaluation.parquet",
+    "sha256": "e537164458f1816dac9678941571a5898be97a5b4230a626e397d896c7ce741e"
+  },
+  "additional_evaluations": {
+    "file": "additional-evaluations.json",
+    "sha256": "ee9e3db8673adfdee70d5acdb29ba551ab1d9ebda8067f2b04fbc507687a0cbf"
+  },
+  "construction": {
+    "topics": 23,
+    "narratives": 180,
+    "cases_per_task": {
+      "NI": 960,
+      "NE": 960,
+      "MNI": 960,
+      "BP": 960,
+      "DP": 960
+    },
+    "query_languages": 24,
+    "cases_with_more_articles": 3845,
+    "cases_with_more_labeled_narratives": 0,
+    "mean_original_articles": 23.94375,
+    "mean_hard_articles": 58.51354166666667,
+    "mean_original_narratives": 7.98125,
+    "mean_hard_narratives": 7.98125,
+    "min_hard_articles": 11,
+    "max_hard_articles": 238,
+    "min_hard_narratives": 3,
+    "max_hard_narratives": 15,
+    "fixed_priors_reused": 960
+  },
+  "runs": [
+    {
+      "dataset": "original",
+      "model_id": "gemini-4-argon-high",
+      "name": "Gemini 4 Argon (high)",
+      "file": "original-gemini-4-argon-high.parquet",
+      "sha256": "e9670ef544e48763aea7cca9902d0b7c0e2718bfbb50ff9d3b93cb7b43fb4865",
+      "responses": 4800,
+      "expected": 4800,
+      "output_limit_hits": 1
+    },
+    {
+      "dataset": "original",
+      "model_id": "gemini-4-argon-low",
+      "name": "Gemini 4 Argon (low)",
+      "file": "original-gemini-4-argon-low.parquet",
+      "sha256": "44670caed809f6c216aaa45f83d673f1231e4b632f740cb8c4de3353eb3c46ce",
+      "responses": 4800,
+      "expected": 4800,
+      "output_limit_hits": 0
+    },
+    {
+      "dataset": "original",
+      "model_id": "gemini-4-carbon-high",
+      "name": "Gemini 4 Carbon (high)",
+      "file": "original-gemini-4-carbon-high.parquet",
+      "sha256": "49fee2451035ae6072d57e1decfaec265f4c812f69c0c34c73daafaf0f5f8453",
+      "responses": 4800,
+      "expected": 4800,
+      "output_limit_hits": 60
+    },
+    {
+      "dataset": "original",
+      "model_id": "gemini-4-carbon-low",
+      "name": "Gemini 4 Carbon (low)",
+      "file": "original-gemini-4-carbon-low.parquet",
+      "sha256": "40073bf36d073d36f0b6024188c20b7299b7240943aba85c74bd385f8a740a81",
+      "responses": 4800,
+      "expected": 4800,
+      "output_limit_hits": 0
+    },
+    {
+      "dataset": "original",
+      "model_id": "gemini-4-hydrogen-low",
+      "name": "Gemini 4 Hydrogen (low)",
+      "file": "original-gemini-4-hydrogen-low.parquet",
+      "sha256": "689147b37c0afafea06ec0c54fcc82bdf7155ea66bae2c17f5137bbcc8ba99b3",
+      "responses": 4800,
+      "expected": 4800,
+      "output_limit_hits": 0
+    },
+    {
+      "dataset": "original",
+      "model_id": "gemini-4-hydrogen-xhigh",
+      "name": "Gemini 4 Hydrogen (xhigh)",
+      "file": "original-gemini-4-hydrogen-xhigh.parquet",
+      "sha256": "10bce5d948a47b386732e0a18bb230f4069e1f58cbc8d71f845bdf78c244a9a7",
+      "responses": 4800,
+      "expected": 4800,
+      "output_limit_hits": 19
+    },
+    {
+      "dataset": "hard",
+      "model_id": "gemini-4-hydrogen-xhigh",
+      "name": "Gemini 4 Hydrogen (xhigh)",
+      "file": "hard-gemini-4-hydrogen-xhigh.parquet",
+      "sha256": "16c4aa4806e6ab76795fdf5463115f53c44765452c2b89759fb6f7a20ce5865b",
+      "responses": 4800,
+      "expected": 4800,
+      "output_limit_hits": 37
+    },
+    {
+      "dataset": "hard",
+      "model_id": "gemini-4-carbon-high",
+      "name": "Gemini 4 Carbon (high)",
+      "file": "hard-gemini-4-carbon-high.parquet",
+      "sha256": "e38e4197b5d102a7efc53fe6193d5e389af8f08aa158f73bf10be9f3f4d2fbf1",
+      "responses": 4529,
+      "expected": 4800,
+      "output_limit_hits": 59
+    },
+    {
+      "dataset": "hard",
+      "model_id": "gemini-4-argon-low",
+      "name": "Gemini 4 Argon (low)",
+      "file": "hard-gemini-4-argon-low.parquet",
+      "sha256": "32a0834b5a562e7e814e7fa8460775e972368f8676a29e393343a434fd5d799c",
+      "responses": 4800,
+      "expected": 4800,
+      "output_limit_hits": 0
+    }
+  ]
+}
