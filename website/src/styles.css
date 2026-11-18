@@ -337,9 +337,9 @@ body:has(.answer-reader[open]) { overflow: hidden; }
 #ranking-status { padding: .35rem; }
 #rank-plot { width: 100%; min-width: 0; }
 /* Plotly's essential SVG layering, served under the site's stylesheet policy. */
-:is(#rank-plot, #paper-matrix, #source-plot) .main-svg { position: absolute; top: 0; left: 0; pointer-events: none; }
-:is(#rank-plot, #paper-matrix, #source-plot) .main-svg .draglayer { pointer-events: all; }
-:is(#rank-plot, #paper-matrix, #source-plot) .user-select-none { user-select: none; }
+:is(#rank-plot, #paper-matrix, #source-plot, #disparity-plot, #language-grid) .main-svg { position: absolute; top: 0; left: 0; pointer-events: none; }
+:is(#rank-plot, #paper-matrix, #source-plot, #disparity-plot, #language-grid) .main-svg .draglayer { pointer-events: all; }
+:is(#rank-plot, #paper-matrix, #source-plot, #disparity-plot, #language-grid) .user-select-none { user-select: none; }
 table { border-collapse: collapse; width: 100%; min-width: 38rem; text-align: left; background: #f8f8fc; }
 thead { background: var(--accent-tint); }
 th, td { padding: .5rem .75rem; border-bottom: 1px solid #d8d6e3; }
