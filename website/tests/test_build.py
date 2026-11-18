@@ -29,6 +29,17 @@ class BuildTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Duplicate"):
             build.index_rows([{"id": "a"}, {"id": "a"}], "id")
 
+    def test_partial_model_keeps_its_own_denominators(self):
+        documents = {"D0001": {"narrative_id": "g", "publication_language": "English"}}
+        cases = {str(i): {"query_type": "neutral", "query_language": "en", "document_ids": ["D0001"], "target_narrative_id": "g"} for i in range(2)}
+        rows = [{"model_id": model, "case_id": key, "task": "NI", "score": value,
+                 "language_status": "same", "source_languages": (), "omitted_languages": ()}
+                for model, key, value in [("full", "0", 1), ("full", "1", 0), ("partial", "1", 1)]]
+        result = build.ranking_slice(rows, cases, documents)
+        self.assertEqual(result["modelCounts"], {"full": {"NI": 2}, "partial": {"NI": 1}})
+        self.assertEqual(result["scores"]["partial"]["NI"], 1)
+        self.assertEqual(result["scores"]["full"]["NI"], .5)
+
     def test_projection_matches_map_coordinate_convention(self):
         self.assertEqual(build.project(-180, 84), [0, 0])
         self.assertEqual(build.project(180, -60), [1000, 400])
@@ -125,7 +136,7 @@ class BuildTests(unittest.TestCase):
         self.assertRegex(
             finding,
             r'<h2[^>]*>The <mark>illusion of knowledge</mark> and <mark>control</mark></h2>'
-            r'\s*<p[^>]*>Models limit users’ agency to navigate narratives\.</p>',
+            r'\s*<p[^>]*>Stronger narrative coverage still leaves gaps in user control and information parity\.</p>',
         )
         self.assertIn("illusion of control", finding)
         self.assertIn("illusion of knowledge", finding)

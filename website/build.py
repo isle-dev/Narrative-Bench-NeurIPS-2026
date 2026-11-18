@@ -156,6 +156,7 @@ def version_browser_assets(site):
         *sorted((site / "vendor").glob("*.js")), *sorted((site / "vendor").glob("*.mjs")),
         *sorted((site / "data").glob("*.json")),
         *sorted((site / "data/source-omissions").glob("*.json")),
+        *sorted((site / "data/hard").rglob("*.json")),
     ]
     version = text_sha("".join(file_sha(path) for path in assets))[:16]
     reference = re.compile(r"""(?P<quote>['"])(?P<path>\./(?:vendor/)?[\w.-]+\.(?:m?js|css))(?P=quote)""")
@@ -192,13 +193,13 @@ def ranking_slice(rows, cases, documents):
             by_source_omitted[row["task"]].update(row["omitted_languages"])
             by_source_available[row["task"]].update(row["source_languages"])
 
-    counts, scores, diagnostics, by_model = {}, {}, {}, {}
+    counts, model_counts_view, scores, diagnostics, by_model = {}, {}, {}, {}, {}
     for model, result in summary.items():
         tasks = result["tasks"]
         model_counts = {task: stats["cases"] for task, stats in tasks.items()}
-        if counts and counts != model_counts:
-            raise ValueError("Inconsistent model denominators in ranking slice")
-        counts = model_counts
+        model_counts_view[model] = model_counts
+        for task, count in model_counts.items():
+            counts[task] = max(counts.get(task, 0), count)
         scores[model] = {task: stats["mean"] for task, stats in tasks.items()}
         metrics = result["higher_capabilities"]
         diagnostics[model] = {
@@ -216,14 +217,14 @@ def ranking_slice(rows, cases, documents):
         task: source_omission_counts(by_source_available[task], by_source_omitted[task]) for task in ("BP", "DP")
     }
     return {
-        "counts": counts, "scores": scores, "diagnostics": diagnostics,
+        "counts": counts, "modelCounts": model_counts_view, "scores": scores, "diagnostics": diagnostics,
         "sourceOmissions": source_omissions, "sourceOmissionsByModel": by_model,
     }
 
 
 def pooled_score(slice_, model):
-    counts = slice_["counts"]
-    return sum(count * slice_["scores"][model][task] for task, count in counts.items()) / sum(counts.values())
+    counts = slice_["modelCounts"].get(model, {})
+    return sum(count * slice_["scores"][model][task] for task, count in counts.items()) / sum(counts.values()) if counts else None
 
 
 def ranking_slices(rows, cases, documents):
@@ -245,7 +246,8 @@ def ranking_slices(rows, cases, documents):
                 if language in {"all", "en"}:
                     continue
                 for model, metrics in slice_["diagnostics"].items():
-                    metrics["query_language_gap_pp"] = 100 * abs(pooled_score(slice_, model) - pooled_score(english, model))
+                    current, reference = pooled_score(slice_, model), pooled_score(english, model)
+                    metrics["query_language_gap_pp"] = 100 * abs(current - reference) if current is not None and reference is not None else None
         slices[topic] = by_language
     return slices
 
@@ -282,6 +284,130 @@ def map_query_index(topic_queries):
             })
         index[topic_id] = entries
     return index
+
+
+def model_view(models, aggregate):
+    return [{"id": key, "name": name, "scores": aggregate["scores"][key],
+             "counts": aggregate["modelCounts"][key]} for key, name in models.items()]
+
+
+def results_matrix(paper, aggregate, models, published=None):
+    published = index_rows(published["rows"], "id") if published else {}
+    result = {"columns": paper["columns"], "palette": paper["palette"], "rows": []}
+    for model in models:
+        key = model["id"]
+        cells = []
+        for column in paper["columns"]:
+            task = column["task"]
+            value = aggregate["scores"][key].get(task) * 100 if task else aggregate["diagnostics"][key][column["diagnostic"]]
+            cells.append({"value": value, "display": f"{value:.{1 if task else column['decimals']}f}" if value is not None else "—", "bin": 0})
+        if key in published:
+            cells = published[key]["cells"]
+        result["rows"].append({"id": key, "name": model["name"], "cells": cells,
+                               "counts": aggregate["modelCounts"][key]})
+    for i, column in enumerate(paper["columns"]):
+        distances = [(100 - row["cells"][i]["value"] if column["task"] else row["cells"][i]["value"])
+                     for row in result["rows"] if row["cells"][i]["value"] is not None]
+        worst = max(distances, default=0)
+        for row in result["rows"]:
+            value = row["cells"][i]["value"]
+            distance = 100 - value if column["task"] and value is not None else value
+            row["cells"][i]["bin"] = min(len(paper["palette"]) - 1, int(distance / worst * len(paper["palette"]))) if distance is not None and worst else 0
+    return result
+
+
+def load_runs(cases, documents, topics, models, responses, summary_rows):
+    root = HERE / "runs"
+    manifest = json.loads((root / "manifest.json").read_text())
+    for entry in [manifest["hard_evaluation"], manifest["additional_evaluations"], *manifest["runs"]]:
+        verify_input(root / entry["file"], entry["sha256"])
+    hard = index_rows(parquet_rows(root / manifest["hard_evaluation"]["file"]), "base_case_id")
+    if hard.keys() != cases.keys():
+        raise ValueError("Full Hard must retain every original case")
+    topic_ids = defaultdict(set)
+    for doc_id, doc in documents.items():
+        topic_ids[doc["topic"]].add(doc_id)
+    for key, case in hard.items():
+        validate_case(case, documents)
+        if set(case["document_ids"]) != topic_ids[case["topic"]]:
+            raise ValueError("Full Hard must include every article for its topic")
+        if any(case[field] != cases[key][field] for field in ("question_id", "query_language", "task", "query", "system_instruction", "prior_answer")):
+            raise ValueError("Full Hard changed an original question or instruction")
+    by_hard_id = {row["case_id"]: key for key, row in hard.items()}
+    hard_responses, hard_rows, hard_models = defaultdict(dict), [], {}
+    for run in manifest["runs"]:
+        original = run["dataset"] == "original"
+        active = cases if original else hard
+        store = responses if original else hard_responses
+        rows = summary_rows if original else hard_rows
+        model = run["model_id"]
+        names = models if original else hard_models
+        if model in names:
+            raise ValueError("Duplicate follow-up model in a dataset")
+        names[model] = run["name"]
+        observed = set()
+        limits = 0
+        for row in parquet_rows(root / run["file"]):
+            key = row["case_id"] if original else by_hard_id[row["case_id"]]
+            case = active[key]
+            if row["model_id"] != model or key in observed:
+                raise ValueError("Unknown or duplicate follow-up response")
+            observed.add(key)
+            limits += row["finish_reason"] == "MAX_TOKENS"
+            value, language, answer = row["score"], row["language_status"], row["response"]
+            if language not in LANGUAGE_STATUSES or text_sha(answer) != row["response_sha256"] or abs(score(case, answer, language, documents) - value) > 1e-12:
+                raise ValueError("Follow-up score does not replay")
+            store[key][model] = {"text": answer, "language": language, "score": value}
+            context = {doc_id: documents[doc_id]["publication_language"] for doc_id in case["document_ids"]}
+            available, omitted = source_omission(context, answer) if case["task"] in {"BP", "DP"} else ((), ())
+            rows.append({"case_id": key, "model_id": model, "task": case["task"], "score": value,
+                         "language_status": language, "source_languages": available, "omitted_languages": omitted,
+                         "topic": topics[case["topic"]]["id"], "query_language": case["query_language"]})
+        if len(observed) != run["responses"] or limits != run["output_limit_hits"] or run["expected"] != len(active):
+            raise ValueError("Follow-up run counts do not match the manifest")
+    return manifest, hard, hard_responses, hard_rows, hard_models
+
+
+def write_results_data(data, cases, responses, rankings, aggregate, matrix, models, topics, languages):
+    (data / "cases").mkdir()
+    for key, case in cases.items():
+        write_json(data / "cases" / f"{key}.json", {"id": key, "query": case["query"], "instruction": case["system_instruction"],
+                   "context": case["query_context"], "priorAnswer": case["prior_answer"], "followup": case["followup_instruction"],
+                   "sources": case["document_ids"], "responses": responses[key]})
+    write_model_omissions(data, rankings)
+    del rankings["all"]["all"]
+    write_json(data / "rankings.json", rankings)
+    write_json(data / "paper-results.json", matrix)
+    write_json(data / "source-omissions.json", aggregate["sourceOmissions"])
+    write_json(data / "catalog.json", {"topics": topics, "languages": languages, "models": models,
+               "counts": {"queries": 460, "cases": len(cases), "responses": sum(len(r) for r in responses.values()), "tasks": aggregate["counts"]}})
+
+
+def language_disparities(rows, cases, documents, models):
+    result = []
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[row["model_id"]].append(row)
+    for model, members in grouped.items():
+        metrics = summarize(members, cases, documents)["models"][model]
+        axes = {"query": defaultdict(list), "source": defaultdict(list)}
+        for row in members:
+            case = cases[row["case_id"]]
+            axes["query"][case["query_language"]].append(row["score"])
+            if case["task"] in {"NI", "NE"}:
+                language = {documents[d]["publication_language"] for d in case["document_ids"] if documents[d]["narrative_id"] == case["target_narrative_id"]}
+                axes["source"][next(iter(language))].append(row["score"])
+        detail = {}
+        for axis, groups in axes.items():
+            reference = "en" if axis == "query" else "English"
+            english = sum(groups[reference]) / len(groups[reference]) * 100
+            detail[axis] = [{"language": language, "score": sum(values) / len(values) * 100,
+                             "english": english, "gap": sum(values) / len(values) * 100 - english, "cases": len(values)}
+                            for language, values in sorted(groups.items())]
+        result.append({"id": model, "name": models[model], "query": metrics["higher_capabilities"]["query_language_gap_pp"],
+                       "source": metrics["higher_capabilities"]["target_language_gap_pp"], "coverage": metrics["tasks"]["DP"]["mean"] * 100,
+                       "cases": len(members), "languages": detail})
+    return result
 
 
 def build_site(release, output):
@@ -354,15 +480,22 @@ def build_site(release, output):
     if any(set(responses[case_id]) != set(models) for case_id in cases):
         raise ValueError("Each evaluation case must have all model configurations")
 
+    original_rows = summary_rows.copy()
+    original_rankings = ranking_slices(original_rows, cases, documents)
+    original_aggregate = original_rankings["all"]["all"]
+    original_models = [{"id": model, "name": name, "scores": original_aggregate["scores"][model]} for model, name in models.items()]
+    paper = json.loads((HERE / "paper-results.json").read_text(encoding="utf-8"))
+    validate_paper_results(paper, original_models, original_aggregate["diagnostics"])
+    manifest, hard_cases, hard_responses, hard_rows, hard_models = load_runs(cases, documents, topics, models, responses, summary_rows)
     rankings = ranking_slices(summary_rows, cases, documents)
     aggregate = rankings["all"]["all"]
     counts = aggregate["counts"]
-    models_view = [
-        {"id": model, "name": name, "scores": aggregate["scores"][model]} for model, name in models.items()
-    ]
-
-    paper = json.loads((HERE / "paper-results.json").read_text(encoding="utf-8"))
-    validate_paper_results(paper, models_view, aggregate["diagnostics"])
+    models_view = model_view(models, aggregate)
+    matrix = results_matrix(paper, aggregate, models_view, published=paper)
+    hard_rankings = ranking_slices(hard_rows, hard_cases, documents)
+    hard_aggregate = hard_rankings["all"]["all"]
+    hard_models_view = model_view(hard_models, hard_aggregate)
+    hard_matrix = results_matrix(paper, hard_aggregate, hard_models_view)
 
     with tempfile.TemporaryDirectory(dir=output.parent) as stage:
         site = Path(stage) / "site"
@@ -416,13 +549,37 @@ def build_site(release, output):
         write_model_omissions(data, rankings)
         del rankings["all"]["all"]
         write_json(data / "rankings.json", rankings)
-        write_json(data / "paper-results.json", paper)
+        write_json(data / "paper-results.json", matrix)
         write_json(data / "source-omissions.json", aggregate["sourceOmissions"])
         write_json(data / "catalog.json", {
             "topics": catalog_topics, "languages": languages, "models": models_view,
             "counts": {"queries": len(queries), "cases": len(cases), "responses": len(summary_rows), "tasks": counts},
             "revision": LOCK["revision"],
         })
+        hard_data = data / "hard"
+        hard_data.mkdir()
+        write_results_data(hard_data, hard_cases, hard_responses, hard_rankings, hard_aggregate, hard_matrix,
+                           hard_models_view, catalog_topics, languages)
+        write_json(data / "language-disparities.json", {
+            "original": language_disparities(summary_rows, cases, documents, models),
+            "hard": language_disparities(hard_rows, hard_cases, documents, hard_models),
+        })
+        supplemental = manifest["additional_evaluations"]
+        shutil.copyfile(HERE / "runs" / supplemental["file"], data / "additional-evaluations.json")
+        write_json(data / "run-summary.json", {"date": manifest["date"], "construction": manifest["construction"],
+                   "runs": [{k: v for k, v in run.items() if k in {"dataset", "model_id", "name", "responses", "expected", "output_limit_hits"}}
+                            for run in manifest["runs"]]})
+        download = site / "downloads"
+        download.mkdir()
+        for filename in ("hard-evaluation.parquet", "manifest.json"):
+            shutil.copyfile(HERE / "runs" / filename, download / filename)
+        for group, group_cases in (("original", cases), ("hard", hard_cases)):
+            all_rows = summary_rows if group == "original" else hard_rows
+            import csv
+            with (download / f"{group}-case-scores.csv").open("w", encoding="utf-8", newline="") as stream:
+                writer = csv.DictWriter(stream, fieldnames=["model_id", "case_id", "task", "score", "language_status", "query_language", "topic"])
+                writer.writeheader()
+                writer.writerows({k: row[k] for k in writer.fieldnames} for row in all_rows)
         version_browser_assets(site)
         (site / ".nojekyll").touch()
         site.rename(output)

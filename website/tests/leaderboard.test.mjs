@@ -131,3 +131,17 @@ test('switching models preserves the language order for the selected scope', asy
   assert.deepEqual(rows.map(row => row.language), ['Arabic', 'English']);
   assert.deepEqual(rows.map(row => row.DP), [[1, 5], [3, 5]]);
 });
+
+test('language comparisons preserve both disparity axes and paired run connections', async () => {
+  const {disparityFigure, languageGridFigure, selectRuns} = await import('../src/language-disparities.mjs');
+  const row={id:'m',name:'Model',query:4,source:6,coverage:80,cases:960,languages:{query:[{language:'en',gap:0,score:80,english:80,cases:20}],source:[]}};
+  const data={original:[row],hard:[{...row,query:5,source:8,cases:900}]};
+  const {traces}=disparityFigure({data,cohort:'both',selected:'all'},900);
+  assert.deepEqual(traces[0].x,[4,5]);
+  assert.deepEqual(traces[0].y,[6,8]);
+  assert.equal(traces[2].customdata[0][3],900);
+  assert.equal(selectRuns(data,'original').length,1);
+  const grid=languageGridFigure({data,cohort:'both',selected:'all',axis:'query',languages:{en:'English'}},500);
+  assert.deepEqual(grid.traces[0].x,['English','English']);
+  assert.equal(grid.traces[0].customdata[1][4],20);
+});

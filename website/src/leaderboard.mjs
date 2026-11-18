@@ -8,7 +8,7 @@ function loadPlotly() {
 }
 
 export function filteredResults(paper, slice) {
-  const rows = paper.rows.map(({ id, name }) => ({ id, name, cells: [] }));
+  const rows = paper.rows.map(({ id, name }) => ({ id, name, cells: [], counts: slice?.modelCounts?.[id] ?? {} }));
   paper.columns.forEach((column, index) => {
     const values = rows.map(({ id }) => {
       if (column.task) {
@@ -87,10 +87,10 @@ export function paperResultsFigure(paper, sort, width, ranking, metric) {
       textposition: 'inside', insidetextanchor: 'middle', constraintext: 'none',
       insidetextfont: { size: 12, color: cells.map(cell => cell.bin === 4 ? '#f8f8fc' : '#182135') },
       marker: { color: cells.map(cell => paper.palette[cell.bin] ?? '#e4eaf2'), line: { color: '#f8f8fc', width: 1 } },
-      customdata: cells.map(cell => [cell.bin * 20, (cell.bin + 1) * 20]),
+      customdata: cells.map((cell, i) => [cell.bin * 20, (cell.bin + 1) * 20, column.task ? rows[i].counts?.[column.task] ?? 960 : "varies by measure"]),
       hovertemplate: cells.map(cell => cell.value == null
         ? `<b>%{y}</b><br>${measure}: unavailable for these filters<extra></extra>`
-        : `<b>%{y}</b><br>${measure}: %{text} (${column.unit})<br>%{customdata[0]}–%{customdata[1]}% distance from ideal<extra></extra>`),
+        : `<b>%{y}</b><br>${measure}: %{text} (${column.unit})<br>Cases: %{customdata[2]}<br>%{customdata[0]}–%{customdata[1]}% distance from ideal<extra></extra>`),
     };
   });
   const header = (text, x, yshift, size) => ({
@@ -269,7 +269,7 @@ export function leaderboardFigure(rows, metric, cases, width) {
       mode: 'markers+text',
       x: values,
       y: names,
-      customdata: rows.map(row => [row.rank, cases]),
+      customdata: rows.map(row => [row.rank, row.cases ?? cases]),
       marker: { color, size: compact ? 8 : 11 },
       text: values.map(value => value == null ? '' : `${(value * 100).toFixed(1)}%`),
       textposition: 'middle right',
@@ -322,4 +322,13 @@ export function mountLeaderboardPlot(host, status) {
     },
   });
   return (rows, metric, cases) => update({ rows, metric, cases });
+}
+
+
+export function mountDisparityPlot(host, status, figure) {
+  return mountPlot(host, figure, {
+    wave: ['.scatterlayer .trace', '.point'],
+    success() { status.hidden = true; },
+    failure() { host.hidden = true; status.hidden = false; status.textContent = 'The chart could not load. Exact gaps are available in the table below.'; },
+  });
 }
