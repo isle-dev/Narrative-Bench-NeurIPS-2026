@@ -4,10 +4,6 @@
     "file": "hard-evaluation.parquet",
     "sha256": "e537164458f1816dac9678941571a5898be97a5b4230a626e397d896c7ce741e"
   },
-  "additional_evaluations": {
-    "file": "additional-evaluations.json",
-    "sha256": "ee9e3db8673adfdee70d5acdb29ba551ab1d9ebda8067f2b04fbc507687a0cbf"
-  },
   "construction": {
     "topics": 23,
     "narratives": 180,

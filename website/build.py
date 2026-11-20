@@ -319,7 +319,7 @@ def results_matrix(paper, aggregate, models, published=None):
 def load_runs(cases, documents, topics, models, responses, summary_rows):
     root = HERE / "runs"
     manifest = json.loads((root / "manifest.json").read_text())
-    for entry in [manifest["hard_evaluation"], manifest["additional_evaluations"], *manifest["runs"]]:
+    for entry in [manifest["hard_evaluation"], *manifest["runs"]]:
         verify_input(root / entry["file"], entry["sha256"])
     hard = index_rows(parquet_rows(root / manifest["hard_evaluation"]["file"]), "base_case_id")
     if hard.keys() != cases.keys():
@@ -365,7 +365,7 @@ def load_runs(cases, documents, topics, models, responses, summary_rows):
                          "topic": topics[case["topic"]]["id"], "query_language": case["query_language"]})
         if len(observed) != run["responses"] or limits != run["output_limit_hits"] or run["expected"] != len(active):
             raise ValueError("Follow-up run counts do not match the manifest")
-    return manifest, hard, hard_responses, hard_rows, hard_models
+    return hard, hard_responses, hard_rows, hard_models
 
 
 def write_results_data(data, cases, responses, rankings, aggregate, matrix, models, topics, languages):
@@ -486,7 +486,7 @@ def build_site(release, output):
     original_models = [{"id": model, "name": name, "scores": original_aggregate["scores"][model]} for model, name in models.items()]
     paper = json.loads((HERE / "paper-results.json").read_text(encoding="utf-8"))
     validate_paper_results(paper, original_models, original_aggregate["diagnostics"])
-    manifest, hard_cases, hard_responses, hard_rows, hard_models = load_runs(cases, documents, topics, models, responses, summary_rows)
+    hard_cases, hard_responses, hard_rows, hard_models = load_runs(cases, documents, topics, models, responses, summary_rows)
     rankings = ranking_slices(summary_rows, cases, documents)
     aggregate = rankings["all"]["all"]
     counts = aggregate["counts"]
@@ -564,15 +564,9 @@ def build_site(release, output):
             "original": language_disparities(summary_rows, cases, documents, models),
             "hard": language_disparities(hard_rows, hard_cases, documents, hard_models),
         })
-        supplemental = manifest["additional_evaluations"]
-        shutil.copyfile(HERE / "runs" / supplemental["file"], data / "additional-evaluations.json")
-        write_json(data / "run-summary.json", {"date": manifest["date"], "construction": manifest["construction"],
-                   "runs": [{k: v for k, v in run.items() if k in {"dataset", "model_id", "name", "responses", "expected", "output_limit_hits"}}
-                            for run in manifest["runs"]]})
         download = site / "downloads"
         download.mkdir()
-        for filename in ("hard-evaluation.parquet", "manifest.json"):
-            shutil.copyfile(HERE / "runs" / filename, download / filename)
+        shutil.copyfile(HERE / "runs/hard-evaluation.parquet", download / "hard-evaluation.parquet")
         for group, group_cases in (("original", cases), ("hard", hard_cases)):
             all_rows = summary_rows if group == "original" else hard_rows
             import csv

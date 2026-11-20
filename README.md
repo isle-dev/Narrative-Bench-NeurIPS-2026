@@ -4,7 +4,7 @@ NarrativeBench evaluates the information seeking capabilities models need to nav
 
 **[Interactive explorer and leaderboard](https://isle-dev.github.io/Narrative-Bench-NeurIPS-2026/) · [Dataset and dataset card](https://huggingface.co/datasets/jhu-clsp/narrative-bench)**
 
-The benchmark contains 1,333 articles across 23 contested topics, 460 Reddit-grounded queries, and 4,800 evaluation cases across 24 query languages. The published release contains responses from 15 model configurations. The website adds six Gemini 4 configurations and results on NarrativeBench Full Hard, which supplies every released article for each topic.
+The benchmark contains 1,333 articles across 23 contested topics, 460 Reddit-grounded queries, and 4,800 evaluation cases across 24 query languages. The published release contains responses from 15 model configurations. The website adds six Gemini 4 configurations and results on NarrativeBench Hard, which supplies every released article for each topic.
 
 ## Get started
 

@@ -19,6 +19,13 @@ class BuildTests(unittest.TestCase):
         self.assertNotIn('id="hard-comparison"', evaluation)
         self.assertNotIn('awaiting submission', evaluation)
 
+    def test_public_page_uses_benchmark_names_and_omits_internal_results(self):
+        page = (build.HERE / "src/index.html").read_text()
+        for text in ("Original benchmark", "Full Hard", "Where the gaps appear",
+                     "Published results", "Steering across a conversation", "Evidence position"):
+            self.assertNotIn(text, page)
+        self.assertFalse((build.HERE / "runs/additional-evaluations.json").exists())
+
     def test_verifies_release_input_hashes(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "data.json"
@@ -144,14 +151,14 @@ class BuildTests(unittest.TestCase):
         self.assertRegex(
             finding,
             r'<h2[^>]*>The <mark>illusion of knowledge</mark> and <mark>control</mark></h2>'
-            r'\s*<p[^>]*>Stronger narrative coverage still leaves gaps in user control and information parity\.</p>',
+            r'\s*<p[^>]*>Asking for diverse perspectives does not mean you receive them\.</p>',
         )
         self.assertIn("illusion of control", finding)
         self.assertIn("illusion of knowledge", finding)
         self.assertIn('id="results-preview-table"', finding)
         before, evaluation = page.split('<details class="score-method"', 1)
         evaluation, after = evaluation.split("</details>", 1)
-        self.assertIn("Language-gated scoring", evaluation)
+        self.assertIn("Responses outside the query language receive a score of zero.", evaluation)
         self.assertNotIn("language-gated", (before + after).lower())
 
     def test_map_regions_are_distinct_and_valid(self):
