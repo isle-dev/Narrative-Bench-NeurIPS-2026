@@ -147,16 +147,31 @@ test('language comparisons preserve both disparity axes and paired run connectio
 });
 
 
-test('Hard rows stay directly below the same original model when sorting', async () => {
+test('one red score matrix keeps the Hard group below NarrativeBench for every sort', async () => {
   const { combinedResults } = await import('../src/leaderboard.mjs');
-  const original = { columns: [{task:'NI'}], palette:['#fff','#f00'], rows:[
-    {id:'a', name:'A', cells:[{value:90,display:'90.0'}]},
-    {id:'b', name:'B', cells:[{value:80,display:'80.0'}]}] };
-  const hard = {...original, rows:[{id:'a',name:'A',counts:{NI:1},cells:[{value:40,display:'40.0'}]}]};
+  const original = {
+    columns: [{task: 'NI', description: 'Narrative inclusion'}],
+    palette: ['#fff', '#f00'],
+    rows: [
+      {id: 'a', name: 'A', cells: [{value: 80, display: '80.0'}]},
+      {id: 'b', name: 'B', cells: [{value: 90, display: '90.0'}]},
+    ],
+  };
+  const hard = {...original, rows: [
+    {id: 'a', name: 'A', counts: {NI: 1}, cells: [{value: 100, display: '100.0'}]},
+    {id: 'b', name: 'B', counts: {NI: 2}, cells: [{value: 70, display: '70.0'}]},
+  ]};
   const result = combinedResults(original, hard);
-  assert.deepEqual(paperResultsRows(result, '0').map(row=>row.id), ['a','a--hard','b']);
-  assert.equal(result.rows[1].counts.NI,1);
-  assert.match(result.rows[1].name,/Hard/);
-  assert.equal(result.rows[0].cells[0].display, '90.0');
-  assert.equal(result.rows[1].cells[0].value,40);
+  const ranking = [{id: 'b'}, {id: 'a'}, {id: 'a--hard'}, {id: 'b--hard'}];
+  const expected = ['b', 'a', 'a--hard', 'b--hard'];
+  assert.deepEqual(paperResultsRows(result, '0').map(row => row.id), expected);
+  assert.deepEqual(paperResultsRows(result, 'ranking', ranking).map(row => row.id), expected);
+
+  const { traces, layout } = paperResultsFigure(result, 'ranking', 1240, ranking, 'NI');
+  assert.deepEqual(layout.yaxis.categoryarray, ['section:original', 'b', 'a', 'section:hard', 'a--hard', 'b--hard']);
+  assert.deepEqual(layout.yaxis.ticktext, ['<b>NarrativeBench</b>', 'B', 'A', '<b>NarrativeBench Hard</b>', 'A', 'B']);
+  assert.equal(layout.shapes[1].y0, 'section:hard');
+  assert.deepEqual(traces[0].text, ['90.0', '80.0', '100.0', '70.0']);
+  assert.deepEqual(traces[0].marker.color, ['#fff', '#f00', '#fff', '#f00']);
+  assert.equal(traces[0].customdata[2][2], 1);
 });

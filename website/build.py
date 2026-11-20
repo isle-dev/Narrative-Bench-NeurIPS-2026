@@ -383,26 +383,6 @@ def write_results_data(data, cases, responses, rankings, aggregate, matrix, mode
                "counts": {"queries": 460, "cases": len(cases), "responses": sum(len(r) for r in responses.values()), "tasks": aggregate["counts"]}})
 
 
-def paired_comparisons(original_rows, hard_rows, cases):
-    original = {(r["model_id"], r["case_id"]): r for r in original_rows}
-    groups = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [0.0, 0.0, 0])))
-    for row in hard_rows:
-        before = original[(row["model_id"], row["case_id"])]
-        case = cases[row["case_id"]]
-        for topic in {"all", case["topic"]}:
-            for language in {"all", case["query_language"]}:
-                values = groups[(topic, language)][row["model_id"]][row["task"]]
-                values[0] += before["score"] * 100
-                values[1] += row["score"] * 100
-                values[2] += 1
-    result = defaultdict(dict)
-    for (topic, language), models in groups.items():
-        result[topic][language] = {
-            model: {task: {"original": a / n, "hard": b / n, "delta": (b-a) / n, "cases": n}
-                    for task, (a, b, n) in tasks.items()} for model, tasks in models.items()}
-    return dict(result)
-
-
 def language_disparities(rows, cases, documents, models):
     result = []
     grouped = defaultdict(list)
@@ -584,9 +564,6 @@ def build_site(release, output):
             "original": language_disparities(summary_rows, cases, documents, models),
             "hard": language_disparities(hard_rows, hard_cases, documents, hard_models),
         })
-        comparisons = paired_comparisons(summary_rows, hard_rows, cases)
-        comparisons = {topics[t]["id"] if t != "all" else t: v for t, v in comparisons.items()}
-        write_json(data / "hard-comparison.json", comparisons)
         supplemental = manifest["additional_evaluations"]
         shutil.copyfile(HERE / "runs" / supplemental["file"], data / "additional-evaluations.json")
         write_json(data / "run-summary.json", {"date": manifest["date"], "construction": manifest["construction"],
