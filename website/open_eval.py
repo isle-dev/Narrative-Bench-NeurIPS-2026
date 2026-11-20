@@ -193,7 +193,7 @@ Extract `NarrativeBench-OpenEval.zip` and upload the `submissions/` directory to
 
 The ten JSONL files contain 4,800 NarrativeBench items with 100,800 responses across 21 model configurations and 4,800 NarrativeBench Hard items with 14,129 responses across three configurations. Files are grouped by dataset and task. Every response includes its actual input messages, model settings, answer, and score. Article texts appear in the prompts, with their original attribution and URLs.
 
-NI and NE use narrative F1. MNI, BP, and DP use narrative recall. Scores range from 0 to 1 and include the automatic response-language check. Framing and language gaps are aggregate comparisons calculated from the item scores. Carbon Hard contains its 4,529 completed responses. Failed inference requests have no fabricated answer or score.
+NI and NE use narrative F1. MNI, BP, and DP use narrative recall. Scores range from 0 to 1 and include the automatic response-language check. Framing and language gaps are aggregate comparisons calculated from the item scores. Carbon Hard contains its 4,529 completed responses.
 
 Unspecified generation settings are null. Reasoning settings are retained when specified. `validation.json` records the official schema and validator checksums, item counts, per-model task means, and archive checksum. Both datasets are distributed under CC BY-NC-SA 4.0, with source article rights retained by their publishers.
 
