@@ -2,7 +2,10 @@ import { BENCHMARK_NAMES, mountDisparityPlot } from './leaderboard.mjs';
 
 const font = {family:'Work Sans, system-ui, sans-serif', color:'#002d72'};
 const sequential = [[0,'#a8cee8'],[.5,'#4689ba'],[1,'#002d72']];
-const diverging = [[0,'#ae2439'],[.25,'#e9878b'],[.5,'#f8f8fc'],[.75,'#84b7d8'],[1,'#064575']];
+const gapColors = [
+  [0, '#f8f8fc'], [.0005, '#fde6e8'], [.25, '#f4b3ba'],
+  [.5, '#de7882'], [.75, '#b53646'], [1, '#811d30'],
+];
 
 export function selectRuns(data, cohort, model = 'all') {
   const original = (data.original ?? []).map(row => ({...row,dataset:'original'}));
@@ -51,12 +54,16 @@ export function languageGridFigure({data,cohort,selected,axis,languages}, width)
   const modelLabel=row=>row.name+(cohort==='original'||cohort==='hard'?'':` · ${BENCHMARK_NAMES[row.dataset]}`);
   const points=rows.flatMap(row=>row.languages[axis].map(item=>({...item,model:modelLabel(row),label:name(item.language),dataset:row.dataset})));
   const chartWidth=Math.max(width,990);
-  return {traces:[{type:'scatter',mode:'markers',x:points.map(p=>p.label),y:points.map(p=>p.model),
-    marker:{symbol:'square',size:Math.min(24,Math.max(15,(chartWidth-300)/codes.length-4)),color:points.map(p=>p.gap),colorscale:diverging,cmin:-40,cmax:40,
-      line:{color:'#d9e2ec',width:.6},showscale:true,colorbar:{title:{text:'Gap from<br>English (pp)'},thickness:10,len:.7}},
+  return {traces:[{type:'scatter',mode:'markers+text',x:points.map(p=>p.label),y:points.map(p=>p.model),
+    marker:{symbol:'square',size:Math.min(24,Math.max(15,(chartWidth-300)/codes.length-4)),
+      color:points.map(p=>Math.abs(p.gap)),colorscale:gapColors,cmin:0,cmax:50,
+      line:{color:'#d9e2ec',width:.6},showscale:true,colorbar:{title:{text:'Absolute gap<br>from English (pp)'},dtick:10,thickness:10,len:.7}},
+    text:points.map(p=>p.gap > 0 ? '+' : p.gap < 0 ? '−' : ''),
+    textposition:'middle center',
+    textfont:{size:13,weight:650,color:points.map(p=>Math.abs(p.gap) >= 30 ? '#ffffff' : '#291921')},
     customdata:points.map(p=>[p.model,p.score,p.english,p.gap,p.cases]),
     hovertemplate:'<b>%{customdata[0]}</b><br>%{x}<br>Score: %{customdata[1]:.1f}%<br>English: %{customdata[2]:.1f}%<br>Gap: %{customdata[3]:+.2f} pp<br>%{customdata[4]:,} cases<extra></extra>'}],
-    layout:{width:chartWidth,height:Math.max(200,rows.length*29+155),margin:{l:294,r:78,t:16,b:115},font:{...font,size:10},
+    layout:{width:chartWidth,height:Math.max(200,rows.length*29+155),margin:{l:294,r:104,t:16,b:115},font:{...font,size:10},
       paper_bgcolor:'transparent',plot_bgcolor:'transparent',hoverlabel:{bgcolor:'#002d72',font:{color:'#fff'},align:'left'},
       dragmode:false,showlegend:false,
       xaxis:{type:'category',categoryorder:'array',categoryarray:codes.map(name),tickangle:-55,showgrid:false,zeroline:false,fixedrange:true},

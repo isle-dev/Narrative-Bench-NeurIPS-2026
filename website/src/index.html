@@ -350,9 +350,16 @@
         <div class="plot-frame"><p id="disparity-status" role="status">Loading language disparities…</p>
           <div id="disparity-plot" role="img" aria-label="Query-language and target narrative-language score gaps by model."></div>
         </div>
-        <div class="disparity-detail-heading"><label for="disparity-axis">Language</label><select id="disparity-axis"><option value="query">Query language · all five tasks</option><option value="source">Narrative language · inclusion and exclusion</option></select></div>
+        <div class="disparity-detail-heading">
+          <div><label for="disparity-axis">Language</label><select id="disparity-axis"><option value="query">Query language · all five tasks</option><option value="source">Narrative language · inclusion and exclusion</option></select></div>
+          <ul class="language-gap-legend" aria-label="Gap direction">
+            <li><span aria-hidden="true">+</span> Above English</li>
+            <li><span aria-hidden="true">−</span> Below English</li>
+            <li><span class="gap-zero" aria-hidden="true"></span> Same as English</li>
+          </ul>
+        </div>
         <p id="language-grid-status" class="muted" role="status">Loading individual languages…</p>
-        <div class="language-grid-scroll"><div id="language-grid" role="img" aria-label="Scores relative to English for every model and language."></div></div>
+        <div class="language-grid-scroll"><div id="language-grid" role="img" aria-label="Scores relative to English for every model and language. Darker red indicates a larger gap in either direction."></div></div>
         <details class="disparity-values"><summary>View exact language gaps</summary><div id="disparity-table" class="matrix-scroll"></div></details>
       </section>
       <details class="score-method" id="score-method" tabindex="-1" open>
