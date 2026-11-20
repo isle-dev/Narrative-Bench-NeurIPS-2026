@@ -145,3 +145,18 @@ test('language comparisons preserve both disparity axes and paired run connectio
   assert.deepEqual(grid.traces[0].x,['English','English']);
   assert.equal(grid.traces[0].customdata[1][4],20);
 });
+
+
+test('Hard rows stay directly below the same original model when sorting', async () => {
+  const { combinedResults } = await import('../src/leaderboard.mjs');
+  const original = { columns: [{task:'NI'}], palette:['#fff','#f00'], rows:[
+    {id:'a', name:'A', cells:[{value:90,display:'90.0'}]},
+    {id:'b', name:'B', cells:[{value:80,display:'80.0'}]}] };
+  const hard = {...original, rows:[{id:'a',name:'A',counts:{NI:1},cells:[{value:40,display:'40.0'}]}]};
+  const result = combinedResults(original, hard);
+  assert.deepEqual(paperResultsRows(result, '0').map(row=>row.id), ['a','a--hard','b']);
+  assert.equal(result.rows[1].counts.NI,1);
+  assert.match(result.rows[1].name,/Hard/);
+  assert.equal(result.rows[0].cells[0].display, '90.0');
+  assert.equal(result.rows[1].cells[0].value,40);
+});

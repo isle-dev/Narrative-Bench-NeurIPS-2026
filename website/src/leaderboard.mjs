@@ -32,20 +32,44 @@ export function filteredResults(paper, slice) {
   return { ...paper, rows };
 }
 
+export function combinedResults(original, hard) {
+  const hardRows = new Map(hard.rows.map(row => [row.id, row]));
+  const rows = original.rows.flatMap(row => [
+    { ...row, dataset: 'original' },
+    ...(hardRows.has(row.id) ? [{ ...hardRows.get(row.id), id: `${row.id}--hard`, baseId: row.id,
+      name: `${row.name} · Hard`, dataset: 'hard' }] : []),
+  ]);
+  // Share the color scale across both evaluations.
+  const result = { ...original, rows };
+  original.columns.forEach((column, i) => {
+    const distance = value => value == null ? null : column.task ? 100-value : value;
+    const worst = Math.max(0, ...rows.map(row => distance(row.cells[i].value)));
+    for (const row of rows) row.cells = row.cells.map((cell, j) => j === i ? { ...cell,
+      bin: cell.value == null ? null : worst ? Math.min(original.palette.length-1,
+        Math.floor(distance(cell.value)/worst*original.palette.length)) : 0 } : cell);
+  });
+  return result;
+}
+
+function keepHardBelowOriginal(rows) {
+  const hard = new Map(rows.filter(row => row.dataset === 'hard').map(row => [row.baseId, row]));
+  return rows.filter(row => row.dataset !== 'hard').flatMap(row => [row, ...(hard.has(row.id) ? [hard.get(row.id)] : [])]);
+}
+
 export function paperResultsRows(paper, sort, ranking) {
   if (sort === 'paper') return paper.rows;
   if (sort === 'ranking') {
     const rowsById = new Map(paper.rows.map(row => [row.id, row]));
-    return ranking.map(row => rowsById.get(row.id));
+    return keepHardBelowOriginal(ranking.map(row => rowsById.get(row.id)).filter(Boolean));
   }
   const index = Number(sort);
   const direction = paper.columns[index].task ? -1 : 1;
-  return [...paper.rows].sort((a, b) => {
+  return keepHardBelowOriginal([...paper.rows].sort((a, b) => {
     const left = a.cells[index].value;
     const right = b.cells[index].value;
     if (left == null || right == null) return Number(left == null) - Number(right == null);
     return direction * (left - right);
-  });
+  }));
 }
 
 export function paperSortColumn(paper, sort, metric) {
@@ -254,7 +278,7 @@ export function leaderboardFigure(rows, metric, cases, width) {
   const compact = width < 600;
   const names = rows.map(row => row.name);
   const values = rows.map(row => row.value == null ? null : row.value / 1000);
-  const color = rows.map(row => row.rank === 1 ? '#002d72' : '#4877a8');
+  const color = rows.map(row => row.dataset === 'hard' ? '#cb181d' : row.rank === 1 ? '#002d72' : '#4877a8');
   const traces = [
     {
       type: 'scatter',
@@ -270,7 +294,7 @@ export function leaderboardFigure(rows, metric, cases, width) {
       x: values,
       y: names,
       customdata: rows.map(row => [row.rank, row.cases ?? cases]),
-      marker: { color, size: compact ? 8 : 11 },
+      marker: { color, size: compact ? 8 : 11, symbol: rows.map(row => row.dataset === 'hard' ? 'diamond' : 'circle') },
       text: values.map(value => value == null ? '' : `${(value * 100).toFixed(1)}%`),
       textposition: 'middle right',
       textfont: { size: compact ? 9 : 12 },

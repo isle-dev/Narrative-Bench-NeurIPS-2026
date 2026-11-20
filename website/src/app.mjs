@@ -1,5 +1,5 @@
 import { formatAnswer } from './answer-format.mjs';
-import { filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsPreview, paperResultsRows, paperSortColumn, sourceOmissionRows } from './leaderboard.mjs';
+import { combinedResults, filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsPreview, paperResultsRows, paperSortColumn, sourceOmissionRows } from './leaderboard.mjs';
 import { parseRoute, queryLanguages, queryScrollState, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
@@ -37,6 +37,9 @@ let paperSort = 'ranking';
 let catalog;
 let activeBenchmark;
 let originalPaper;
+let hardMatrix;
+let hardCatalog;
+let hardSlices;
 let map;
 let mapSelection;
 let activeQuery;
@@ -199,7 +202,7 @@ async function updateSourceOmissions(topic, lang, model, pooled, run) {
   let counts = pooled;
   if (model) {
     try {
-      const slices = await datasetData(`source-omissions/${model.id}`);
+      const slices = await data(`${model.dataset === 'hard' ? 'hard/' : ''}source-omissions/${model.baseId ?? model.id}`);
       counts = slices[topic]?.[lang];
     } catch {
       if (run !== renderId) return;
@@ -221,9 +224,12 @@ async function renderLeaderboard(route, run) {
   const topics = sortedTopics();
   const topic = topics.some(item => item.id === route.topic) ? route.topic : 'all';
   const lang = Object.hasOwn(catalog.languages, route.lang) ? route.lang : 'all';
-  const sourceModel = catalog.models.find(model => model.id === route.sourceModel);
-  const modelOptions = catalog.models.map(({ id, name }) => [id, name]).sort((a, b) => a[1].localeCompare(b[1]));
-  options($('source-model'), [['', 'All model configurations'], ...modelOptions], sourceModel?.id ?? '');
+  hardCatalog ??= await data('hard/catalog');
+  if (run !== renderId) return;
+  const sourceModels = [...catalog.models, ...hardCatalog.models.map(model => ({...model, id:`${model.id}--hard`, baseId:model.id, name:`${model.name} · Hard`, dataset:'hard'}))];
+  const sourceModel = sourceModels.find(model => model.id === route.sourceModel);
+  const modelOptions = sourceModels.map(({ id, name }) => [id, name]).sort((a, b) => a[1].localeCompare(b[1]));
+  options($('source-model'), [['', 'All NarrativeBench configurations'], ...modelOptions], sourceModel?.id ?? '');
   options($('rank-topic'), [['all', 'All topics'], ...topics.map(item => [item.id, item.label])], topic);
   options($('rank-language'), [['all', 'All query languages'], ...sortedLanguages()], lang);
   const hash = hashFor({
@@ -235,11 +241,18 @@ async function renderLeaderboard(route, run) {
   $('nav-leaderboard').href = hash;
   const key = `${activeBenchmark}/${topic}/${lang}`;
   const filtered = topic !== 'all' || lang !== 'all';
-  const [results, slices, omissions] = await Promise.all([
-    paper ?? datasetData('paper-results'), filtered ? datasetData('rankings') : null, filtered ? null : datasetData('source-omissions'),
+  const [results, slices, omissions, hardResults, hardRuns, hardFiltered, comparison] = await Promise.all([
+    paper ?? data('paper-results'), filtered ? data('rankings') : null, filtered ? null : data('source-omissions'),
+    hardMatrix ?? data('hard/paper-results'), hardCatalog ?? data('hard/catalog'),
+    filtered ? (hardSlices ?? data('hard/rankings')) : null, data('hard-comparison'),
   ]);
   if (run !== renderId) return;
   paper = results;
+  hardMatrix = hardResults;
+  hardCatalog = hardRuns;
+  if (hardFiltered) hardSlices = hardFiltered;
+  const hardSlice = hardFiltered?.[topic]?.[lang];
+  renderHardComparison(comparison[topic]?.[lang] ?? {}, hardRuns.models);
   const slice = slices?.[topic]?.[lang];
   const measures = paper.columns.filter(column => column.task);
   const measure = measures.find(column => column.task === metric);
@@ -253,7 +266,8 @@ async function renderLeaderboard(route, run) {
     ];
     if (filtered && !slice) scope.push('No evaluated cases');
     $('score-scope').textContent = filtered ? `Filtered · ${scope.join(' · ')}` : 'All topics · All query languages';
-    matrix = filtered ? filteredResults(paper, slice) : paper;
+    matrix = combinedResults(filtered ? filteredResults(paper, slice) : paper,
+      filtered ? filteredResults(hardResults, hardSlice) : hardResults);
     matrixKey = key;
   }
 
@@ -262,16 +276,44 @@ async function renderLeaderboard(route, run) {
   if (rankingChanged) {
     rankingKey = rankKey;
     const selection = sliceRanking(catalog, slices, topic, lang, metric);
-    ranking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
+    const originalRanking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
+    const hardRanking = sliceRanking(hardRuns, hardFiltered, topic, lang, metric)?.rows ?? hardRuns.models.map(model => ({ ...model, value: null, rank: null }));
+    const hardById = new Map(hardRanking.map(row => [row.id, row]));
+    ranking = originalRanking.flatMap(row => [row, ...(hardById.has(row.id) ? [{...hardById.get(row.id), id: `${row.id}--hard`, name: `${row.name} · Hard`, dataset:'hard'}] : [])]);
     const cases = selection?.counts[metric] ?? 0;
     $('score-note').textContent =
-      `${measure.description} · ${measure.metric} · ${number.format(ranking.length)} model configurations · ${
+      `${measure.description} · ${measure.metric} · 21 NarrativeBench and 3 Hard configurations · ${
         [...new Set(ranking.map(row => row.cases ?? cases).filter(Boolean))].sort((a,b) => a-b).map(number.format).join('–')
       } evaluated cases per model`;
     plotRanking(ranking, `${measure.description} (${measure.metric})`, cases);
   }
   if (matrixChanged || (rankingChanged && paperSort === 'ranking')) renderPaperResults();
   await updateSourceOmissions(topic, lang, sourceModel, filtered ? slice?.sourceOmissions : omissions, run);
+}
+
+function renderHardComparison(values, models) {
+  const table = element('table');
+  const head = table.createTHead().insertRow();
+  for (const label of ['Model', 'Narrative inclusion', 'Narrative exclusion', 'Missing narratives', 'Baseline coverage', 'Diverse coverage']) {
+    const th = element('th', label); th.scope = 'col'; head.append(th);
+  }
+  const body = table.createTBody();
+  for (const model of models) {
+    const row = body.insertRow();
+    const name = element('th', model.name); name.scope = 'row'; row.append(name);
+    for (const task of Object.keys(TASKS)) {
+      const score = values[model.id]?.[task];
+      const cell = element('td');
+      if (score) {
+        cell.append(element('span', `${score.original.toFixed(1)} → ${score.hard.toFixed(1)}`, 'paired-values'));
+        const delta = `${score.delta > 0 ? '+' : score.delta < 0 ? '−' : ''}${Math.abs(score.delta).toFixed(2)} pp`;
+        cell.append(element('strong', delta, score.delta < 0 ? 'score-drop' : 'score-gain'));
+        cell.title = `${score.cases.toLocaleString()} matched cases`;
+      } else cell.textContent = '—';
+      row.append(cell);
+    }
+  }
+  $('hard-comparison-table').replaceChildren(table);
 }
 
 const queryList = $('queries');
@@ -565,7 +607,7 @@ async function render() {
   }
   lastPage = route.page;
   try {
-    const benchmark = route.benchmark === 'hard' ? 'hard' : 'original';
+    const benchmark = explorer && route.benchmark === 'hard' ? 'hard' : 'original';
     if (activeBenchmark !== benchmark) {
       const next = await data(benchmark === 'hard' ? 'hard/catalog' : 'catalog');
       if (run !== renderId) return;
@@ -578,8 +620,8 @@ async function render() {
       loadedCase = undefined;
       for (const select of document.querySelectorAll('[data-benchmark]')) select.value = benchmark;
     }
-    $('hard-description').hidden = benchmark !== 'hard';
-    $('results-cohort').textContent = benchmark === 'hard' ? 'Full Hard · three configurations' : 'Published evaluations and six Gemini 4 configurations';
+    $('hard-description').hidden = false;
+    $('results-cohort').textContent = 'NarrativeBench · 21 configurations, with 3 Hard runs directly below the same model';
     if (run !== renderId) return;
     if (explorer) {
       void renderResultsPreview();
