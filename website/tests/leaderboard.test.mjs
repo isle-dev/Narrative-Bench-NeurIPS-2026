@@ -178,3 +178,20 @@ test('one red score matrix keeps the Hard group below NarrativeBench for every s
   assert.deepEqual(traces[0].marker.color, ['#fff', '#f00', '#fff', '#f00']);
   assert.equal(traces[0].customdata[2][2], 1);
 });
+
+
+test('language gap color reflects magnitude and signs show direction', async () => {
+  const {languageGridFigure} = await import('../src/language-disparities.mjs');
+  const query = [
+    {language:'en', gap:0, score:65, english:65, cases:20},
+    {language:'fr', gap:12, score:77, english:65, cases:12},
+    {language:'ar', gap:-12, score:53, english:65, cases:10},
+  ];
+  const data = {original:[{id:'m', name:'Model', languages:{query}}]};
+  const {traces:[trace]} = languageGridFigure({data, cohort:'original', selected:'all', axis:'query', languages:{}}, 1050);
+  assert.deepEqual(trace.marker.color, [0, 12, 12]);
+  assert.deepEqual(trace.text, ['', '+', '−']);
+  assert.deepEqual(trace.customdata.map(point=>point[3]), [0, 12, -12]);
+  assert.equal(trace.marker.cmin, 0);
+  assert.equal(trace.marker.cmax, 50);
+});

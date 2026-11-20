@@ -534,7 +534,11 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .disparity-legend span { display:inline-flex; align-items:center; gap:.4rem; }
 .original-dot,.hard-dot { display:inline-block; width:10px; height:10px; background:#4689ba; border-radius:50%; }
 .hard-dot { transform:rotate(45deg); border:2px solid #e54b5f; border-radius:0; }
-.disparity-detail-heading { margin-block:1.6rem .8rem; }
+.disparity-detail-heading { display:flex; flex-wrap:wrap; align-items:end; gap:.7rem 1.4rem; margin-block:1.6rem .8rem; }
+.language-gap-legend { display:flex; flex-wrap:wrap; gap:.35rem .9rem; list-style:none; padding:0; margin:0; font-size:.8rem; }
+.language-gap-legend li { display:inline-flex; align-items:center; gap:.4rem; }
+.language-gap-legend span { display:inline-grid; place-items:center; width:1rem; height:1rem; background:#f4b3ba; color:#291921; font-weight:650; }
+.language-gap-legend .gap-zero { background:#f8f8fc; border:1px solid #d9e2ec; }
 .disparity-detail-heading select { max-width:100%; }
 .language-grid-scroll { overflow-x:auto; border:1px solid var(--line); padding:.5rem; background:var(--sheet); }
 .disparity-values { margin-top:1rem; }
