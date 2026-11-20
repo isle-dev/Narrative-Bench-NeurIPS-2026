@@ -1,5 +1,5 @@
 import { formatAnswer } from './answer-format.mjs';
-import { combinedResults, filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsPreview, paperResultsRows, paperSortColumn, sourceOmissionRows } from './leaderboard.mjs';
+import { BENCHMARK_NAMES, combinedResults, filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsPreview, paperResultsRows, paperSortColumn, sourceOmissionRows } from './leaderboard.mjs';
 import { parseRoute, queryLanguages, queryScrollState, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
@@ -115,7 +115,7 @@ function renderPaperResults() {
   const activeColumn = paperSortColumn(matrix, paperSort, metric);
   options($('paper-sort'), [
     ['ranking', 'Follow Rank by'],
-    ['paper', activeBenchmark === 'hard' ? 'Model order' : 'Published order, then follow-up runs'],
+    ['paper', 'Published order, then follow-up runs'],
     ...matrix.columns.map((column, index) => [String(index), column.description]),
   ], paperSort);
   const table = element('table');
@@ -131,8 +131,19 @@ function renderPaperResults() {
     if (index === activeColumn) heading.setAttribute('aria-sort', column.task ? 'descending' : 'ascending');
     head.append(heading);
   }
-  const body = table.createTBody();
+  let body;
+  let dataset;
   for (const model of paperResultsRows(matrix, paperSort, ranking)) {
+    if (model.dataset !== dataset) {
+      dataset = model.dataset;
+      body = table.createTBody();
+      const titleRow = body.insertRow();
+      titleRow.className = `score-group-heading score-group-heading-${dataset}`;
+      const title = element('th', BENCHMARK_NAMES[dataset]);
+      title.scope = 'rowgroup';
+      title.colSpan = matrix.columns.length + 1;
+      titleRow.append(title);
+    }
     const row = body.insertRow();
     const name = element('th', model.name);
     name.scope = 'row';
@@ -241,10 +252,10 @@ async function renderLeaderboard(route, run) {
   $('nav-leaderboard').href = hash;
   const key = `${activeBenchmark}/${topic}/${lang}`;
   const filtered = topic !== 'all' || lang !== 'all';
-  const [results, slices, omissions, hardResults, hardRuns, hardFiltered, comparison] = await Promise.all([
+  const [results, slices, omissions, hardResults, hardRuns, hardFiltered] = await Promise.all([
     paper ?? data('paper-results'), filtered ? data('rankings') : null, filtered ? null : data('source-omissions'),
     hardMatrix ?? data('hard/paper-results'), hardCatalog ?? data('hard/catalog'),
-    filtered ? (hardSlices ?? data('hard/rankings')) : null, data('hard-comparison'),
+    filtered ? (hardSlices ?? data('hard/rankings')) : null,
   ]);
   if (run !== renderId) return;
   paper = results;
@@ -252,7 +263,6 @@ async function renderLeaderboard(route, run) {
   hardCatalog = hardRuns;
   if (hardFiltered) hardSlices = hardFiltered;
   const hardSlice = hardFiltered?.[topic]?.[lang];
-  renderHardComparison(comparison[topic]?.[lang] ?? {}, hardRuns.models);
   const slice = slices?.[topic]?.[lang];
   const measures = paper.columns.filter(column => column.task);
   const measure = measures.find(column => column.task === metric);
@@ -278,42 +288,19 @@ async function renderLeaderboard(route, run) {
     const selection = sliceRanking(catalog, slices, topic, lang, metric);
     const originalRanking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
     const hardRanking = sliceRanking(hardRuns, hardFiltered, topic, lang, metric)?.rows ?? hardRuns.models.map(model => ({ ...model, value: null, rank: null }));
-    const hardById = new Map(hardRanking.map(row => [row.id, row]));
-    ranking = originalRanking.flatMap(row => [row, ...(hardById.has(row.id) ? [{...hardById.get(row.id), id: `${row.id}--hard`, name: `${row.name} · Hard`, dataset:'hard'}] : [])]);
+    ranking = [...originalRanking, ...hardRanking.map(row => ({
+      ...row, id: `${row.id}--hard`, dataset: 'hard',
+    }))];
     const cases = selection?.counts[metric] ?? 0;
     $('score-note').textContent =
       `${measure.description} · ${measure.metric} · 21 NarrativeBench and 3 Hard configurations · ${
         [...new Set(ranking.map(row => row.cases ?? cases).filter(Boolean))].sort((a,b) => a-b).map(number.format).join('–')
       } evaluated cases per model`;
-    plotRanking(ranking, `${measure.description} (${measure.metric})`, cases);
+    const chartRows = ranking.map(row => row.dataset === 'hard' ? { ...row, name: `${row.name} · Hard` } : row);
+    plotRanking(chartRows, `${measure.description} (${measure.metric})`, cases);
   }
   if (matrixChanged || (rankingChanged && paperSort === 'ranking')) renderPaperResults();
   await updateSourceOmissions(topic, lang, sourceModel, filtered ? slice?.sourceOmissions : omissions, run);
-}
-
-function renderHardComparison(values, models) {
-  const table = element('table');
-  const head = table.createTHead().insertRow();
-  for (const label of ['Model', 'Narrative inclusion', 'Narrative exclusion', 'Missing narratives', 'Baseline coverage', 'Diverse coverage']) {
-    const th = element('th', label); th.scope = 'col'; head.append(th);
-  }
-  const body = table.createTBody();
-  for (const model of models) {
-    const row = body.insertRow();
-    const name = element('th', model.name); name.scope = 'row'; row.append(name);
-    for (const task of Object.keys(TASKS)) {
-      const score = values[model.id]?.[task];
-      const cell = element('td');
-      if (score) {
-        cell.append(element('span', `${score.original.toFixed(1)} → ${score.hard.toFixed(1)}`, 'paired-values'));
-        const delta = `${score.delta > 0 ? '+' : score.delta < 0 ? '−' : ''}${Math.abs(score.delta).toFixed(2)} pp`;
-        cell.append(element('strong', delta, score.delta < 0 ? 'score-drop' : 'score-gain'));
-        cell.title = `${score.cases.toLocaleString()} matched cases`;
-      } else cell.textContent = '—';
-      row.append(cell);
-    }
-  }
-  $('hard-comparison-table').replaceChildren(table);
 }
 
 const queryList = $('queries');
@@ -620,8 +607,6 @@ async function render() {
       loadedCase = undefined;
       for (const select of document.querySelectorAll('[data-benchmark]')) select.value = benchmark;
     }
-    $('hard-description').hidden = false;
-    $('results-cohort').textContent = 'NarrativeBench · 21 configurations, with 3 Hard runs directly below the same model';
     if (run !== renderId) return;
     if (explorer) {
       void renderResultsPreview();

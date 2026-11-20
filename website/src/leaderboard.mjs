@@ -33,12 +33,10 @@ export function filteredResults(paper, slice) {
 }
 
 export function combinedResults(original, hard) {
-  const hardRows = new Map(hard.rows.map(row => [row.id, row]));
-  const rows = original.rows.flatMap(row => [
-    { ...row, dataset: 'original' },
-    ...(hardRows.has(row.id) ? [{ ...hardRows.get(row.id), id: `${row.id}--hard`, baseId: row.id,
-      name: `${row.name} · Hard`, dataset: 'hard' }] : []),
-  ]);
+  const rows = [
+    ...original.rows.map(row => ({ ...row, dataset: 'original' })),
+    ...hard.rows.map(row => ({ ...row, id: `${row.id}--hard`, dataset: 'hard' })),
+  ];
   // Share the color scale across both evaluations.
   const result = { ...original, rows };
   original.columns.forEach((column, i) => {
@@ -51,25 +49,24 @@ export function combinedResults(original, hard) {
   return result;
 }
 
-function keepHardBelowOriginal(rows) {
-  const hard = new Map(rows.filter(row => row.dataset === 'hard').map(row => [row.baseId, row]));
-  return rows.filter(row => row.dataset !== 'hard').flatMap(row => [row, ...(hard.has(row.id) ? [hard.get(row.id)] : [])]);
-}
+export const BENCHMARK_NAMES = { original: 'NarrativeBench', hard: 'NarrativeBench Hard' };
 
 export function paperResultsRows(paper, sort, ranking) {
   if (sort === 'paper') return paper.rows;
   if (sort === 'ranking') {
     const rowsById = new Map(paper.rows.map(row => [row.id, row]));
-    return keepHardBelowOriginal(ranking.map(row => rowsById.get(row.id)).filter(Boolean));
+    return ranking.map(row => rowsById.get(row.id)).filter(Boolean);
   }
   const index = Number(sort);
   const direction = paper.columns[index].task ? -1 : 1;
-  return keepHardBelowOriginal([...paper.rows].sort((a, b) => {
+  return [...paper.rows].sort((a, b) => {
+    const datasetOrder = Number(a.dataset === 'hard') - Number(b.dataset === 'hard');
+    if (datasetOrder) return datasetOrder;
     const left = a.cells[index].value;
     const right = b.cells[index].value;
     if (left == null || right == null) return Number(left == null) - Number(right == null);
     return direction * (left - right);
-  }));
+  });
 }
 
 export function paperSortColumn(paper, sort, metric) {
@@ -100,28 +97,46 @@ function wrapColumnLabel(label) {
 
 export function paperResultsFigure(paper, sort, width, ranking, metric) {
   const rows = paperResultsRows(paper, sort, ranking);
-  const names = rows.map(row => row.name);
+  const grouped = rows.some(row => row.dataset === 'hard');
+  const keys = rows.map(row => grouped ? row.id : row.name);
+  const tickValues = [];
+  const tickLabels = [];
+  const dividers = [];
+  for (const [index, row] of rows.entries()) {
+    if (grouped && row.dataset !== rows[index - 1]?.dataset) {
+      const section = `section:${row.dataset}`;
+      tickValues.push(section);
+      tickLabels.push(`<b>${BENCHMARK_NAMES[row.dataset]}</b>`);
+      dividers.push({ type: 'line', xref: 'paper', yref: 'y',
+        x0: 0, x1: 1, y0: section, y1: section,
+        line: { color: row.dataset === 'hard' ? '#cb181d' : '#bac7dc', width: 1 } });
+    }
+    tickValues.push(keys[index]);
+    tickLabels.push(row.name);
+  }
+
   const activeColumn = paperSortColumn(paper, sort, metric);
   const traces = paper.columns.map((column, index) => {
     const cells = rows.map(row => row.cells[index]);
     const measure = column.metric ? `${column.description} (${column.metric})` : column.description;
     return {
-      type: 'bar', orientation: 'h', y: names, x: names.map(() => 1),
+      type: 'bar', orientation: 'h', y: keys, x: keys.map(() => 1),
       text: cells.map(cell => cell.display),
       textposition: 'inside', insidetextanchor: 'middle', constraintext: 'none',
       insidetextfont: { size: 12, color: cells.map(cell => cell.bin === 4 ? '#f8f8fc' : '#182135') },
       marker: { color: cells.map(cell => paper.palette[cell.bin] ?? '#e4eaf2'), line: { color: '#f8f8fc', width: 1 } },
-      customdata: cells.map((cell, i) => [cell.bin * 20, (cell.bin + 1) * 20, column.task ? rows[i].counts?.[column.task] ?? 960 : "varies by measure"]),
+      customdata: cells.map((cell, i) => [cell.bin * 20, (cell.bin + 1) * 20, column.task ? rows[i].counts?.[column.task] ?? 960 : "varies by measure", rows[i].name]),
       hovertemplate: cells.map(cell => cell.value == null
-        ? `<b>%{y}</b><br>${measure}: unavailable for these filters<extra></extra>`
-        : `<b>%{y}</b><br>${measure}: %{text} (${column.unit})<br>Cases: %{customdata[2]}<br>%{customdata[0]}–%{customdata[1]}% distance from ideal<extra></extra>`),
+        ? `<b>%{customdata[3]}</b><br>${measure}: unavailable for these filters<extra></extra>`
+        : `<b>%{customdata[3]}</b><br>${measure}: %{text} (${column.unit})<br>Cases: %{customdata[2]}<br>%{customdata[0]}–%{customdata[1]}% distance from ideal<extra></extra>`),
     };
   });
   const header = (text, x, yshift, size) => ({
     text, x, y: 1, yshift, xref: 'x', yref: 'paper', yanchor: 'middle', showarrow: false, font: { size },
   });
   const layout = {
-    width, height: rows.length * 34 + 160,
+    width, height: tickValues.length * 34 + 160,
+    shapes: dividers,
     margin: { l: 224, r: 16, t: 146, b: 14 },
     barmode: 'stack', bargap: .16, showlegend: false, hovermode: 'closest', dragmode: false,
     paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { ...font, size: 12 },
@@ -145,7 +160,9 @@ export function paperResultsFigure(paper, sort, width, ranking, metric) {
       showgrid: false, zeroline: false,
     },
     yaxis: {
-      type: 'category', categoryorder: 'array', categoryarray: names, autorange: 'reversed',
+      type: 'category', categoryorder: 'array', categoryarray: tickValues,
+      ...(grouped ? { tickmode: 'array', tickvals: tickValues, ticktext: tickLabels,
+        range: [tickValues.length - .5, -.5] } : { autorange: 'reversed' }),
       fixedrange: true, ticklabelstandoff: 9, showgrid: false,
     },
   };

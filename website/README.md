@@ -36,7 +36,7 @@ The Pages workflow tests and builds changes on pull requests, then publishes the
 
 ## Compare NarrativeBench and Hard
 
-The results page displays 21 NarrativeBench configurations, with each of the three Hard runs directly below the same model in the table and task chart. The comparison table uses only shared completed cases for each model and task, including Carbon's partial Hard run. Topic and query-language filters apply to both datasets. Language-disparity plots compare both evaluations, and individual Hard runs are also available in the source-language selector.
+The results table displays the NarrativeBench configurations first and the three NarrativeBench Hard configurations below a divider, with a shared color scale. Sorting works within each dataset. Topic and query-language filters apply to both datasets. Language-disparity plots compare both evaluations, and individual Hard runs are also available in the source-language selector.
 
 ## Open Eval export
 
@@ -46,4 +46,4 @@ The results page displays 21 NarrativeBench configurations, with each of the thr
 python website/open_eval.py --release /path/to/benchmark --validator /path/to/OpenEval --output /path/to/new-submission-folder
 ```
 
-The output contains the submission ZIP, a short upload guide, and `validation.json` with counts, task means, and checksums. Preparing the export does not submit it. The website links to Open Eval and labels the submission status until review is complete.
+The output contains the submission ZIP, a short upload guide, and `validation.json` with counts, task means, and checksums. Preparing the export does not submit it.
