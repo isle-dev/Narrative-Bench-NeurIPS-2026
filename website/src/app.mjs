@@ -30,6 +30,7 @@ const plotOmissions = mountSourceOmissions($('source-plot'), $('source-fallback'
 let paper;
 let matrix;
 let matrixKey;
+let matrixCaption = 'Benchmark results';
 let rankingKey;
 let ranking;
 let sourceKey;
@@ -119,7 +120,7 @@ function renderPaperResults() {
     ...matrix.columns.map((column, index) => [String(index), column.description]),
   ], paperSort);
   const table = element('table');
-  table.append(element('caption', `Exact scores · ${$('score-scope').textContent}`, 'sr-only'));
+  table.append(element('caption', matrixCaption, 'sr-only'));
   const head = table.createTHead().insertRow();
   const modelHeading = element('th', 'Model');
   modelHeading.scope = 'col';
@@ -237,7 +238,7 @@ async function renderLeaderboard(route, run) {
   const lang = Object.hasOwn(catalog.languages, route.lang) ? route.lang : 'all';
   hardCatalog ??= await data('hard/catalog');
   if (run !== renderId) return;
-  const sourceModels = [...catalog.models, ...hardCatalog.models.map(model => ({...model, id:`${model.id}--hard`, baseId:model.id, name:`${model.name} · Hard`, dataset:'hard'}))];
+  const sourceModels = [...catalog.models, ...hardCatalog.models.map(model => ({...model, id:`${model.id}--hard`, baseId:model.id, name:`${model.name} · ${BENCHMARK_NAMES.hard}`, dataset:'hard'}))];
   const sourceModel = sourceModels.find(model => model.id === route.sourceModel);
   const modelOptions = sourceModels.map(({ id, name }) => [id, name]).sort((a, b) => a[1].localeCompare(b[1]));
   options($('source-model'), [['', 'All NarrativeBench configurations'], ...modelOptions], sourceModel?.id ?? '');
@@ -275,7 +276,7 @@ async function renderLeaderboard(route, run) {
       catalog.languages[lang] ?? 'All query languages',
     ];
     if (filtered && !slice) scope.push('No evaluated cases');
-    $('score-scope').textContent = filtered ? `Filtered · ${scope.join(' · ')}` : 'All topics · All query languages';
+    matrixCaption = filtered ? `Benchmark results · ${scope.join(' · ')}` : 'Benchmark results';
     matrix = combinedResults(filtered ? filteredResults(paper, slice) : paper,
       filtered ? filteredResults(hardResults, hardSlice) : hardResults);
     matrixKey = key;
@@ -292,12 +293,8 @@ async function renderLeaderboard(route, run) {
       ...row, id: `${row.id}--hard`, dataset: 'hard',
     }))];
     const cases = selection?.counts[metric] ?? 0;
-    $('score-note').textContent =
-      `${measure.description} · ${measure.metric} · 21 NarrativeBench and 3 Hard configurations · ${
-        [...new Set(ranking.map(row => row.cases ?? cases).filter(Boolean))].sort((a,b) => a-b).map(number.format).join('–')
-      } evaluated cases per model`;
-    const chartRows = ranking.map(row => row.dataset === 'hard' ? { ...row, name: `${row.name} · Hard` } : row);
-    plotRanking(chartRows, `${measure.description} (${measure.metric})`, cases);
+    $('score-note').textContent = `${measure.description} · ${measure.metric}`;
+    plotRanking(ranking, `${measure.description} (${measure.metric})`, cases);
   }
   if (matrixChanged || (rankingChanged && paperSort === 'ranking')) renderPaperResults();
   await updateSourceOmissions(topic, lang, sourceModel, filtered ? slice?.sourceOmissions : omissions, run);
@@ -400,7 +397,7 @@ function showDatasetAnswerStatus(query, lang) {
 
 function renderAnswer(container, response, lang) {
   if (!response) {
-    container.replaceChildren(element('p', 'This request failed during inference. A response is unavailable for this case.', 'muted'));
+    container.replaceChildren(element('p', 'No response is available for this case.', 'muted'));
     currentResponses.delete(container);
     return;
   }

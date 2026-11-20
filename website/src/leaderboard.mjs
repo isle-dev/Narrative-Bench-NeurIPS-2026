@@ -293,7 +293,8 @@ export function mountSourceOmissions(host, fallback, status) {
 
 export function leaderboardFigure(rows, metric, cases, width) {
   const compact = width < 600;
-  const names = rows.map(row => row.name);
+  const grouped = rows.some(row => row.dataset === 'hard');
+  const names = rows.map(row => grouped ? row.id : row.name);
   const values = rows.map(row => row.value == null ? null : row.value / 1000);
   const color = rows.map(row => row.dataset === 'hard' ? '#cb181d' : row.rank === 1 ? '#002d72' : '#4877a8');
   const traces = [
@@ -310,12 +311,12 @@ export function leaderboardFigure(rows, metric, cases, width) {
       mode: 'markers+text',
       x: values,
       y: names,
-      customdata: rows.map(row => [row.rank, row.cases ?? cases]),
+      customdata: rows.map(row => [row.rank, row.cases ?? cases, row.name, BENCHMARK_NAMES[row.dataset ?? 'original']]),
       marker: { color, size: compact ? 8 : 11, symbol: rows.map(row => row.dataset === 'hard' ? 'diamond' : 'circle') },
       text: values.map(value => value == null ? '' : `${(value * 100).toFixed(1)}%`),
       textposition: 'middle right',
       textfont: { size: compact ? 9 : 12 },
-      hovertemplate: `<b>%{y}</b><br>${metric}: %{x:.1%}<br>Rank %{customdata[0]} · n = %{customdata[1]}<extra></extra>`,
+      hovertemplate: `<b>%{customdata[2]}</b><br>%{customdata[3]}<br>${metric}: %{x:.1%}<br>Rank %{customdata[0]} · n = %{customdata[1]}<extra></extra>`,
       cliponaxis: false,
     },
   ];
@@ -342,7 +343,8 @@ export function leaderboardFigure(rows, metric, cases, width) {
       fixedrange: true,
       title: { text: 'Mean score', font: { size: compact ? 11 : 13 } },
     },
-    yaxis: { type: 'category', ticklabelstandoff: 9, showgrid: false, categoryorder: 'array', categoryarray: names, autorange: 'reversed', fixedrange: true },
+    yaxis: { type: 'category', ticklabelstandoff: 9, showgrid: false, categoryorder: 'array', categoryarray: names, autorange: 'reversed', fixedrange: true,
+      ...(grouped ? { tickmode: 'array', tickvals: names, ticktext: rows.map(row => row.name) } : {}) },
     annotations: cases ? [] : [{
       text: 'No evaluated cases for these filters', x: .5, y: .5, xref: 'paper', yref: 'paper',
       showarrow: false, font: { size: 12 }, bgcolor: '#f8f8fc', borderpad: 7,

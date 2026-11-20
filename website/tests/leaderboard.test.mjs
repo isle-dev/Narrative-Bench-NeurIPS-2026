@@ -13,7 +13,7 @@ test('the Plotly chart follows the same ranking, rounding, and denominators as t
   const { traces, layout } = leaderboardFigure(rows, 'NE F1', 960, 800);
   assert.deepEqual(traces[1].y, ['Model B', 'Model A']);
   assert.deepEqual(traces[1].x, [.92, .408]);
-  assert.deepEqual(traces[1].customdata, [[1, 960], [2, 960]]);
+  assert.deepEqual(traces[1].customdata, [[1, 960, 'Model B', 'NarrativeBench'], [2, 960, 'Model A', 'NarrativeBench']]);
   assert.deepEqual(layout.xaxis.range, [0, 1]);
 });
 
@@ -140,9 +140,12 @@ test('language comparisons preserve both disparity axes and paired run connectio
   assert.deepEqual(traces[0].x,[4,5]);
   assert.deepEqual(traces[0].y,[6,8]);
   assert.equal(traces[2].customdata[0][3],900);
+  assert.equal(traces[1].customdata[0][1], 'NarrativeBench');
+  assert.equal(traces[2].customdata[0][1], 'NarrativeBench Hard');
   assert.equal(selectRuns(data,'original').length,1);
   const grid=languageGridFigure({data,cohort:'both',selected:'all',axis:'query',languages:{en:'English'}},500);
   assert.deepEqual(grid.traces[0].x,['English','English']);
+  assert.deepEqual(new Set(grid.traces[0].y), new Set(['Model · NarrativeBench', 'Model · NarrativeBench Hard']));
   assert.equal(grid.traces[0].customdata[1][4],20);
 });
 

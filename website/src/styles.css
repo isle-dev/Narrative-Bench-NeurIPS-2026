@@ -523,10 +523,10 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .benchmark-switch label { font-size:.85rem; color:var(--muted); }
 .benchmark-switch select { max-width:65%; }
 .eyebrow { font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; font-weight:650; color:var(--accent); }
-.disparity-section, .additional-results { margin-block:2.8rem; padding-top:1.5rem; border-top:1px solid var(--line); }
+.disparity-section { margin-block:2.8rem; padding-top:1.5rem; border-top:1px solid var(--line); }
 .disparity-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2rem; }
 .disparity-heading h2 { font-size:clamp(1.7rem,3vw,2.4rem); margin:.35rem 0 .75rem; }
-.disparity-heading p, .disparity-detail-heading p, .additional-results p { color:var(--muted); line-height:1.65; margin-top:.6rem; }
+.disparity-heading p { color:var(--muted); line-height:1.65; margin-top:.6rem; }
 .disparity-controls { display:flex; flex-direction:column; gap:.7rem; min-width:230px; }
 .disparity-controls label, .disparity-detail-heading label { display:block; font-size:.8rem; margin-bottom:.3rem; }
 .disparity-controls select { width:100%; }
@@ -534,20 +534,16 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .disparity-legend span { display:inline-flex; align-items:center; gap:.4rem; }
 .original-dot,.hard-dot { display:inline-block; width:10px; height:10px; background:#4689ba; border-radius:50%; }
 .hard-dot { transform:rotate(45deg); border:2px solid #e54b5f; border-radius:0; }
-.disparity-detail-heading { display:flex; justify-content:space-between; align-items:center; gap:2rem; margin-block:1.6rem .8rem; }
-.disparity-detail-heading h3 { font-size:1.2rem; }
+.disparity-detail-heading { margin-block:1.6rem .8rem; }
 .disparity-detail-heading select { max-width:100%; }
 .language-grid-scroll { overflow-x:auto; border:1px solid var(--line); padding:.5rem; background:var(--sheet); }
 .disparity-values { margin-top:1rem; }
 .disparity-values table { white-space:nowrap; }
 .disparity-values td,.disparity-values th { padding:.65rem; text-align:start; border-bottom:1px solid var(--line); }
-.additional-results h2 { font-size:1.7rem; }
-.additional-results details { margin-top:1rem; }
 @media(max-width:800px) {
   .disparity-heading { grid-template-columns:1fr; gap:1.1rem; }
   .disparity-controls { flex-direction:row; min-width:0; }
   .disparity-controls>div { flex:1; min-width:0; }
-  .disparity-detail-heading { flex-direction:column; align-items:start; gap:.7rem; }
 }
 @media(max-width:480px) { .disparity-controls { flex-direction:column; } .disparity-legend { gap:.7rem; } }
 
