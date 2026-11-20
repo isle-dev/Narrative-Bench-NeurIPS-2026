@@ -11,6 +11,29 @@ SPEC.loader.exec_module(build)
 
 
 class BuildTests(unittest.TestCase):
+    def test_hard_comparison_uses_only_shared_completed_cases(self):
+        cases = {"a": {"topic": "Gaza", "query_language": "en"},
+                 "b": {"topic": "Gaza", "query_language": "ar"}}
+        original = [{"case_id": "a", "model_id": "m", "task": "NI", "score": .8},
+                    {"case_id": "b", "model_id": "m", "task": "NI", "score": 0}]
+        hard = [{"case_id": "a", "model_id": "m", "task": "NI", "score": .5}]
+        result = build.paired_comparisons(original, hard, cases)
+        row = result["all"]["all"]["m"]["NI"]
+        self.assertEqual(row["cases"], 1)
+        self.assertAlmostEqual(row["original"], 80)
+        self.assertAlmostEqual(row["hard"], 50)
+        self.assertAlmostEqual(row["delta"], -30)
+        self.assertNotIn("ar", result["all"])
+
+    def test_both_evaluations_are_visible_without_a_dataset_selector(self):
+        page = (build.HERE / "src/index.html").read_text()
+        evaluation = page.split('<section id="leaderboard"', 1)[1]
+        self.assertNotIn('id="results-benchmark"', evaluation)
+        self.assertIn('id="hard-comparison"', evaluation)
+        self.assertIn('id="hard-description" aria-', evaluation)
+        self.assertIn('https://open-eval.com/', evaluation)
+        self.assertIn('submission prepared', evaluation.lower())
+
     def test_verifies_release_input_hashes(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "data.json"

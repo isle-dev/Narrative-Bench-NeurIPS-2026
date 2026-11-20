@@ -558,3 +558,21 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
   .ranking-controls { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media(max-width:480px) { .disparity-controls { flex-direction:column; } .disparity-legend { gap:.7rem; } }
+
+.dataset-descriptions { display:grid; grid-template-columns:1fr 1fr; gap:2rem; }
+.dataset-descriptions article { border-top:3px solid #002d72; padding-top:.8rem; }
+.dataset-descriptions .hard-description { display:block; border:0; border-top:3px solid #cb181d; margin:0; padding:.8rem 0 0; background:transparent; }
+.evaluation-description { margin:2.2rem 0; }
+.item-data-link { font-size:.9rem; }
+.item-data-link span { color:#56647a; }
+.hard-comparison { margin:2rem 0 2.5rem; }
+.hard-comparison table { width:100%; border-collapse:collapse; min-width:880px; font-size:.88rem; }
+.hard-comparison th, .hard-comparison td { padding:.8rem .7rem; border-bottom:1px solid #dfe4ee; text-align:left; }
+.hard-comparison thead th { font-size:.8rem; }
+.hard-comparison td { white-space:nowrap; }
+.paired-values { display:block; color:#002d72; margin-bottom:.25rem; }
+.score-drop { color:#a50f15; } .score-gain { color:#002d72; }
+@media(max-width:700px) { .dataset-descriptions { grid-template-columns:1fr; gap:1.2rem; } }
+
+.ranking-controls { grid-template-columns:repeat(3,minmax(0,1fr)); }
+@media(max-width:700px) { .ranking-controls { grid-template-columns:1fr; } }

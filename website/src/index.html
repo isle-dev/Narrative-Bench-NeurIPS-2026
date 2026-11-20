@@ -293,9 +293,6 @@
         <p>Compare model performance across the information-seeking capabilities.</p>
       </header>
       <div class="ranking-controls">
-        <div><label for="results-benchmark">Evaluation</label>
-          <select id="results-benchmark" data-benchmark><option value="original">NarrativeBench</option><option value="hard">NarrativeBench Full Hard</option></select>
-        </div>
         <div>
           <label for="metric">Rank by</label>
           <select id="metric" disabled></select>
@@ -309,15 +306,27 @@
           <select id="rank-language" disabled></select>
         </div>
       </div>
-      <section class="hard-description" id="hard-description" hidden aria-labelledby="hard-title">
-        <div><p class="eyebrow">Full-topic evidence</p><h2 id="hard-title">NarrativeBench Full Hard</h2>
-          <p>Every case includes all released articles for its topic, expanding the average context from 24 to 59 articles and reaching up to 238. The same 460 questions, 23 topics, 24 query languages, and five tasks measure whether models can navigate the full multilingual evidence.</p>
-          <p>All labeled narratives were already represented in the original contexts. Full Hard adds articles within those narratives and uses a fixed new article order. The score change captures both changes.</p></div>
-        <div class="hard-coverage"><strong>4,800 cases per model</strong><p>Hydrogen XHigh and Argon Low returned all 4,800 responses. Carbon High returned 4,529, with 271 requests failing during inference. Its scores use the completed cases, whose counts appear in chart tooltips.</p>
-          <a href="./downloads/hard-evaluation.parquet" download>Download Full Hard evaluation ↓</a>
-          <a href="./downloads/hard-case-scores.csv" download>Download case scores ↓</a>
-          <p class="muted">Resolve article IDs using the <a href="https://huggingface.co/datasets/jhu-clsp/narrative-bench">NarrativeBench dataset</a>.</p>
+      <section class="evaluation-description" aria-labelledby="evaluation-title">
+        <p class="eyebrow">Two evaluations, the same capabilities</p><h2 id="evaluation-title">Navigating more of the story</h2>
+        <div class="dataset-descriptions">
+          <article><h3>NarrativeBench</h3>
+            <p>People seeking information about the same event encounter different accounts across regions and languages. NarrativeBench brings together 1,333 news articles in 23 languages across 23 topics and 460 Reddit-grounded questions to test whether models help users navigate those narratives.</p>
+            <p>Each evaluation gives the model three articles per narrative and asks it to include a requested narrative, leave one out, recover missing narratives, or present competing accounts. Neutral and confirmatory questions across 24 query languages test whether information access changes with the question’s framing or language.</p>
+            <a href="https://huggingface.co/datasets/jhu-clsp/narrative-bench">Explore the dataset ↗</a>
+          </article>
+          <article class="hard-description" id="hard-description" aria-labelledby="hard-title"><h3 id="hard-title">NarrativeBench Hard</h3>
+            <p>Hard asks the same questions with every article available for the topic, increasing the average context from 24 to 59 articles and reaching up to 238. Models must find and follow the requested narratives within a larger collection of multilingual evidence.</p>
+            <p>The 4,800 cases retain the same narratives, questions, instructions, and earlier answers. Hard adds articles within those narratives and changes their order, testing whether models maintain the capabilities as the evidence grows.</p>
+            <a href="./downloads/hard-evaluation.parquet" download>Download Hard evaluation ↓</a>
+          </article>
         </div>
+        <p class="item-data-link"><a href="https://open-eval.com/" target="_blank" rel="noopener noreferrer">Find item-level data on Open Eval ↗</a> <span>Submission prepared · awaiting submission and review.</span> Scores are also available for <a href="./downloads/original-case-scores.csv" download>NarrativeBench</a> and <a href="./downloads/hard-case-scores.csv" download>Hard</a>.</p>
+      </section>
+      <section id="hard-comparison" class="hard-comparison" aria-labelledby="hard-comparison-title">
+        <h2 id="hard-comparison-title">How much do scores change on Hard?</h2>
+        <p>Each cell shows NarrativeBench → Hard, followed by the change in percentage points. Both scores use exactly the same completed cases for each model and task. The topic and query-language filters above apply to both evaluations.</p>
+        <div id="hard-comparison-table" class="matrix-scroll" tabindex="0" role="region" aria-label="Matched NarrativeBench and Hard scores"></div>
+        <p class="matrix-note">Hydrogen XHigh and Argon Low completed all 4,800 cases each. Carbon High completed 4,529, with 877–945 cases per task. Its comparison uses only those matched cases.</p>
       </section>
       <section id="paper-results" class="paper-results" aria-labelledby="paper-results-title">
         <header class="matrix-header">
@@ -342,10 +351,11 @@
           <div id="paper-matrix" aria-hidden="true"></div>
           <div id="paper-fallback" class="sr-only"></div>
         </div>
-        <p class="matrix-note">Colors use the worst score in each column for the current selection. A dash means a metric is unavailable for that selection. <a href="#score-method" id="metric-guide-link">What the metrics mean ↓</a></p>
+        <p class="matrix-note">Hard runs appear directly below the same model’s NarrativeBench row. Colors use one shared scale across both evaluations. A dash means a metric is unavailable for that selection. <a href="#score-method" id="metric-guide-link">What the metrics mean ↓</a></p>
       </section>
       <section id="task-ranking" aria-labelledby="task-ranking-title">
-        <h2 id="task-ranking-title">Task rankings</h2>
+        <h2 id="task-ranking-title">Task scores across both evaluations</h2>
+        <p class="disparity-legend"><span><i class="original-dot"></i> NarrativeBench</span><span><i class="hard-dot"></i> Hard, directly below the same model</span></p>
         <p id="score-note" class="score-note muted" role="status"></p>
         <div id="plotly.js-style-global" class="no-inline-styles" hidden></div>
         <div class="plot-frame">
