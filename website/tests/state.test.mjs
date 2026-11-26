@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseRoute, queryChoices, queryLanguages, resolveSelection, rankedRows, sliceRanking } from '../src/state.mjs';
+import { evaluationModels, resolveModelSelection, parseRoute, queryChoices, queryLanguages, resolveSelection, rankedRows, sliceRanking } from '../src/state.mjs';
 
 const queries = [
   { id: 'q1', translations: { en: 'first', ar: 'أول' }, cases: { ar: { DP: 'c1' } } },
@@ -74,4 +74,22 @@ test('partial and unavailable runs retain their real denominators', () => {
   assert.equal(rows[0].cases,2);
   assert.equal(rows[1].value,null);
   assert.equal(rows[1].rank,null);
+});
+
+
+test('both evaluations supply independent model selections and old Hard links resolve correctly', () => {
+  const original = [{id:'a',name:'A'},{id:'b',name:'B'}];
+  const hard = [{id:'a',name:'A'}];
+  const models = evaluationModels(original,hard);
+  assert.deepEqual(models.map(({id,baseId,dataset}) => [id,baseId,dataset]), [['a','a','original'],['b','b','original'],['a--hard','a','hard']]);
+  assert.equal(resolveModelSelection(models,'a',undefined,'a').dataset,'original');
+  assert.equal(resolveModelSelection(models,'a--hard',undefined,'a').dataset,'hard');
+  assert.equal(resolveModelSelection(models,'a','hard','a').dataset,'hard');
+  assert.equal(resolveModelSelection(models,undefined,'hard','a').dataset,'hard');
+});
+
+test('poster routes retain independent benchmark model selections; leaderboard has no cohort filter', () => {
+  assert.deepEqual(parseRoute('#poster'), {page:'explorer',section:'poster'});
+  assert.deepEqual(parseRoute('#explore?topic=gaza&left=a&right=a--hard&section=poster'), {page:'explorer',topic:'gaza',left:'a',right:'a--hard',section:'poster'});
+  assert.deepEqual(parseRoute('#leaderboard?benchmark=hard&metric=NE'), {page:'leaderboard',metric:'NE'});
 });

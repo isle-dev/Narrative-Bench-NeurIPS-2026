@@ -1,15 +1,32 @@
 const DEFAULT_TASK = 'DP';
-const EXPLORER_PARAMS = ['topic', 'lang', 'query', 'task', 'left', 'right', 'pins', 'scope', 'mapLang', 'benchmark'];
+const EXPLORER_PARAMS = ['topic', 'lang', 'query', 'task', 'left', 'right', 'pins', 'scope', 'mapLang', 'benchmark', 'section'];
 
 export function parseRoute(hash) {
   const [name, search] = hash.slice(1).split('?');
   const params = new URLSearchParams(search);
   const route = { page: name === 'leaderboard' ? 'leaderboard' : 'explorer' };
-  const keys = name === 'leaderboard' ? ['metric', 'topic', 'lang', 'sourceModel', 'benchmark'] : name === 'explore' ? EXPLORER_PARAMS : [];
+  if (name === 'poster') route.section = 'poster';
+  const keys = name === 'leaderboard' ? ['metric', 'topic', 'lang', 'sourceModel'] : name === 'explore' ? EXPLORER_PARAMS : [];
   for (const key of keys) {
     if (params.has(key)) route[key] = params.get(key);
   }
   return route;
+}
+
+export function evaluationModels(original, hard) {
+  return [
+    ...original.map(model => ({ ...model, baseId: model.id, dataset: 'original' })),
+    ...hard.map(model => ({ ...model, id: `${model.id}--hard`, baseId: model.id, dataset: 'hard' })),
+  ];
+}
+
+export function resolveModelSelection(models, id, legacyBenchmark, fallback) {
+  const legacyId = legacyBenchmark === 'hard' && id && !id.endsWith('--hard') ? `${id}--hard` : id;
+  const legacyFallback = legacyBenchmark === 'hard' && !fallback.endsWith('--hard') ? `${fallback}--hard` : fallback;
+  return models.find(model => model.id === legacyId)
+    ?? models.find(model => model.id === legacyFallback)
+    ?? models.find(model => model.id === fallback)
+    ?? models[0];
 }
 
 function inScope(query, lang, scope) {

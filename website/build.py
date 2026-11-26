@@ -291,10 +291,14 @@ def model_view(models, aggregate):
              "counts": aggregate["modelCounts"][key]} for key, name in models.items()]
 
 
-def results_matrix(paper, aggregate, models, published=None):
+def results_matrix(paper, aggregate, models, published=None, model_order=None):
     published = index_rows(published["rows"], "id") if published else {}
+    # Published configurations retain the exact order of the paper's figure;
+    # follow-up configurations retain their run order. Hard uses that same
+    # order for configurations shared with the original evaluation.
+    order = {key: i for i, key in enumerate(model_order if model_order is not None else published)}
     result = {"columns": paper["columns"], "palette": paper["palette"], "rows": []}
-    for model in models:
+    for model in sorted(models, key=lambda item: order.get(item["id"], len(order))):
         key = model["id"]
         cells = []
         for column in paper["columns"]:
@@ -303,8 +307,9 @@ def results_matrix(paper, aggregate, models, published=None):
             cells.append({"value": value, "display": f"{value:.{1 if task else column['decimals']}f}" if value is not None else "—", "bin": 0})
         if key in published:
             cells = published[key]["cells"]
+        phase = "published" if key in published else "followup" if published else "hard"
         result["rows"].append({"id": key, "name": model["name"], "cells": cells,
-                               "counts": aggregate["modelCounts"][key]})
+                               "counts": aggregate["modelCounts"][key], "phase": phase})
     for i, column in enumerate(paper["columns"]):
         distances = [(100 - row["cells"][i]["value"] if column["task"] else row["cells"][i]["value"])
                      for row in result["rows"] if row["cells"][i]["value"] is not None]
@@ -495,7 +500,8 @@ def build_site(release, output):
     hard_rankings = ranking_slices(hard_rows, hard_cases, documents)
     hard_aggregate = hard_rankings["all"]["all"]
     hard_models_view = model_view(hard_models, hard_aggregate)
-    hard_matrix = results_matrix(paper, hard_aggregate, hard_models_view)
+    hard_matrix = results_matrix(paper, hard_aggregate, hard_models_view,
+                                 model_order=[row["id"] for row in matrix["rows"]])
 
     with tempfile.TemporaryDirectory(dir=output.parent) as stage:
         site = Path(stage) / "site"

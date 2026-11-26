@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img"><title>Narrative languages</title>
+  <path d="M9 21 18 13 62 10 82 16 89 33 87 80 74 88 24 89 8 77 5 45Z" fill="#e9e9ed" opacity=".8"/>
+  <path d="M9 34c12-7 24-4 36 3 11-7 24-10 41-5v46c-14-4-27-3-41 5-14-8-26-10-40-4Z" fill="#eedce4" stroke="#8d2d50" stroke-width="3.3" stroke-linejoin="round"/>
+  <path d="M13 27c12-5 22-2 32 5 10-8 24-10 37-6v45c-14-4-26-2-37 6-11-7-22-10-32-5Z" fill="#f8f8fc" stroke="#081d39" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M45 34v41M21 41c6-1 12 1 17 5M21 50c6-1 12 1 17 5M21 59c6-1 12 1 17 5M53 64c7-4 12-4 19-4" stroke="#081d39" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#f8f8fc" stroke="#8d2d50" stroke-width="2.7">
+    <circle cx="68" cy="24" r="18"/>
+    <ellipse cx="68" cy="24" rx="8.6" ry="18" fill="none"/>
+    <path d="M50 24h36M53 15q15 7 30 0M53 33q15-7 30 0" fill="none"/>
+  </g>
+</svg>

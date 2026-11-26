@@ -10,8 +10,7 @@ const gapColors = [
 export function selectRuns(data, cohort, model = 'all') {
   const original = (data.original ?? []).map(row => ({...row,dataset:'original'}));
   const hard = (data.hard ?? []).map(row => ({...row,dataset:'hard'}));
-  let rows = cohort === 'original' ? original : cohort === 'hard' ? hard : [...original,...hard];
-  if (cohort === 'gemini4') rows = rows.filter(row => row.id.startsWith('gemini-4-'));
+  const rows = cohort === 'original' ? original : cohort === 'hard' ? hard : [...original,...hard];
   return model === 'all' ? rows : rows.filter(row => row.id === model);
 }
 
@@ -35,28 +34,31 @@ export function disparityFigure({data,cohort,selected}, width) {
       customdata:group.map(row=>[row.name,BENCHMARK_NAMES[row.dataset],row.coverage,row.cases,row.id]),
       hovertemplate:'<b>%{customdata[0]}</b><br>%{customdata[1]}<br>Query-language gap: %{x:.2f} pp<br>Narrative-language gap: %{y:.2f} pp<br>Diverse-prompt recall: %{customdata[2]:.1f}%<br>%{customdata[3]:,} cases<extra></extra>'});
   }
-  const labelled = selected==='all' ? rows.filter(row=>row.dataset==='hard') : rows.filter(row=>row.id===selected);
+  const labelled = selected==='all' ? [] : rows.filter(row=>row.id===selected);
+  const extent = key => [0, Math.max(5, Math.ceil(Math.max(...rows.map(row=>row[key] ?? 0)) / 2) * 2 + 2)];
   return {traces,layout:{width,height:width<600?420:490,margin:{l:54,r:width<600?16:85,t:30,b:76},font,
     paper_bgcolor:'transparent',plot_bgcolor:'transparent',showlegend:false,hovermode:'closest',dragmode:'zoom',
     hoverlabel:{bgcolor:'#002d72',font:{color:'#fff'},align:'left'},
-    xaxis:{title:{text:'Query-language gap from English (pp)',standoff:16},range:[0,16],gridcolor:'#dbe3ee',zeroline:false},
-    yaxis:{title:{text:'Narrative-language gap (pp)',standoff:8},range:[0,14],gridcolor:'#dbe3ee',zeroline:false},
+    xaxis:{title:{text:'Query-language gap from English (pp)',standoff:16},range:extent('query'),gridcolor:'#dbe3ee',zeroline:false},
+    yaxis:{title:{text:'Narrative-language gap (pp)',standoff:8},range:extent('source'),gridcolor:'#dbe3ee',zeroline:false},
     coloraxis:{colorscale:sequential,cmin:0,cmax:100,showscale:width>=600,colorbar:{title:{text:'Diverse-prompt<br>recall (%)',font:{size:10}},thickness:10,len:.72,tickfont:{size:10}}},
-    annotations:labelled.map((row,i)=>({x:row.query,y:row.source,text:row.name.replace('Gemini 4 ',''),
+    annotations:labelled.map((row,i)=>({x:row.query,y:row.source,text:row.name,
       showarrow:true,arrowhead:0,arrowcolor:'#7d8ea6',ax:width<600?-20:35,ay:(i===0?-45:i===1?-35:35),font:{size:width<600?9:11},bgcolor:'#f8f8fc',borderpad:3}))}};
 }
 
 export function languageGridFigure({data,cohort,selected,axis,languages}, width) {
-  const rows=selectRuns(data,cohort,selected).sort((a,b)=>a.name.localeCompare(b.name)||a.dataset.localeCompare(b.dataset));
+  const rows=selectRuns(data,cohort).sort((a,b)=>Number(a.dataset==='hard')-Number(b.dataset==='hard')||a.name.localeCompare(b.name));
   const codes=[...new Set(rows.flatMap(row=>row.languages[axis].map(item=>item.language)))];
   const name=code=>axis==='query'?languages[code]??code:code;
   codes.sort((a,b)=>name(a).localeCompare(name(b)));
   const modelLabel=row=>row.name+(cohort==='original'||cohort==='hard'?'':` · ${BENCHMARK_NAMES[row.dataset]}`);
-  const points=rows.flatMap(row=>row.languages[axis].map(item=>({...item,model:modelLabel(row),label:name(item.language),dataset:row.dataset})));
+  const points=rows.flatMap(row=>row.languages[axis].map(item=>({...item,model:modelLabel(row),label:name(item.language),dataset:row.dataset,id:row.id})));
   const chartWidth=Math.max(width,990);
+  const sharedMax = Math.max(50, Math.ceil(Math.max(...selectRuns(data,cohort).flatMap(row=>Object.values(row.languages).flatMap(items=>items.map(item=>Math.abs(item.gap))))) / 10) * 10);
   return {traces:[{type:'scatter',mode:'markers+text',x:points.map(p=>p.label),y:points.map(p=>p.model),
     marker:{symbol:'square',size:Math.min(24,Math.max(15,(chartWidth-300)/codes.length-4)),
-      color:points.map(p=>Math.abs(p.gap)),colorscale:gapColors,cmin:0,cmax:50,
+      color:points.map(p=>Math.abs(p.gap)),colorscale:gapColors,cmin:0,cmax:sharedMax,
+      opacity:points.map(p=>selected==='all'||p.id===selected?1:.42),
       line:{color:'#d9e2ec',width:.6},showscale:true,colorbar:{title:{text:'Absolute gap<br>from English (pp)'},dtick:10,thickness:10,len:.7}},
     text:points.map(p=>p.gap > 0 ? '+' : p.gap < 0 ? '−' : ''),
     textposition:'middle center',
@@ -78,19 +80,22 @@ async function initialize() {
   const data=await response.json();
   const catalog=await fetch(new URL('./data/catalog.json'+new URL(import.meta.url).search,import.meta.url)).then(r=>r.json());
   const scatter=mountDisparityPlot($('disparity-plot'),$('disparity-status'),disparityFigure);
-  const grid=mountDisparityPlot($('language-grid'),$('language-grid-status'),languageGridFigure);
+  const queryGrid=mountDisparityPlot($('language-grid'),$('language-grid-status'),languageGridFigure);
+  const sourceGrid=mountDisparityPlot($('source-language-grid'),$('source-language-grid-status'),languageGridFigure);
   const names=new Map([...data.original,...data.hard].map(row=>[row.id,row.name]));
   const select=$('disparity-model');
   for(const [id,name] of [...names].sort((a,b)=>a[1].localeCompare(b[1])))select.append(new Option(name,id));
   function render() {
-    const settings={data,cohort:$('disparity-cohort').value,selected:select.value,axis:$('disparity-axis').value,languages:catalog.languages};
-    scatter(settings);grid(settings);
+    const settings={data,cohort:'both',selected:select.value,languages:catalog.languages};
+    scatter(settings);
+    queryGrid({...settings,axis:'query'});
+    sourceGrid({...settings,axis:'source'});
     const table=document.createElement('table');
     const head=table.createTHead().insertRow();
     for(const text of ['Model','Evaluation','Query-language gap (pp)','Narrative-language gap (pp)','Diverse recall (%)','Cases']){
       const th=document.createElement('th');th.scope='col';th.textContent=text;head.append(th);
     }
-    for(const row of selectRuns(data,settings.cohort,settings.selected)){
+    for(const row of selectRuns(data,settings.cohort)){
       const tr=table.insertRow();
       for(const text of [row.name,BENCHMARK_NAMES[row.dataset],row.query.toFixed(2),row.source.toFixed(2),row.coverage.toFixed(1),row.cases.toLocaleString()]){
         const td=tr.insertCell();td.textContent=text;
@@ -98,7 +103,7 @@ async function initialize() {
     }
     $('disparity-table').replaceChildren(table);
   }
-  for(const id of ['disparity-cohort','disparity-model','disparity-axis'])$(id).addEventListener('change',render);
+  select.addEventListener('change',render);
   render();
   const host=$('disparity-plot');
   const bind=()=>{

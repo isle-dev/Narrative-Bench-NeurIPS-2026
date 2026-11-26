@@ -8,11 +8,11 @@ function loadPlotly() {
 }
 
 export function filteredResults(paper, slice) {
-  const rows = paper.rows.map(({ id, name }) => ({ id, name, cells: [], counts: slice?.modelCounts?.[id] ?? {} }));
+  const rows = paper.rows.map(row => ({ ...row, cells: [], counts: slice?.modelCounts?.[row.id] ?? {} }));
   paper.columns.forEach((column, index) => {
     const values = rows.map(({ id }) => {
       if (column.task) {
-        const score = slice?.scores[id]?.[column.task];
+        const score = slice?.scores?.[id]?.[column.task];
         return score == null ? null : score * 100;
       }
       return slice?.diagnostics?.[id]?.[column.diagnostic] ?? null;
@@ -50,6 +50,11 @@ export function combinedResults(original, hard) {
 }
 
 export const BENCHMARK_NAMES = { original: 'NarrativeBench', hard: 'NarrativeBench Hard' };
+export const PAPER_GROUP_NAMES = { ...BENCHMARK_NAMES, followup: 'Gemini 4 follow-up (NarrativeBench)' };
+
+export function paperResultsGroup(row, sort) {
+  return sort === 'paper' && row?.phase === 'followup' ? 'followup' : row?.dataset;
+}
 
 export function paperResultsRows(paper, sort, ranking) {
   if (sort === 'paper') return paper.rows;
@@ -74,14 +79,6 @@ export function paperSortColumn(paper, sort, metric) {
   return sort === 'ranking' ? paper.columns.findIndex(column => column.task === metric) : Number(sort);
 }
 
-export function paperResultsPreview(paper) {
-  return ['NI', 'NE', 'MNI'].map(task => {
-    const index = paper.columns.findIndex(column => column.task === task);
-    const [best] = paperResultsRows(paper, String(index));
-    return { measure: paper.columns[index].description, name: best.name, score: best.cells[index].value };
-  });
-}
-
 function wrapColumnLabel(label) {
   const lines = [];
   let line = '';
@@ -97,19 +94,20 @@ function wrapColumnLabel(label) {
 
 export function paperResultsFigure(paper, sort, width, ranking, metric) {
   const rows = paperResultsRows(paper, sort, ranking);
-  const grouped = rows.some(row => row.dataset === 'hard');
+  const grouped = rows.some(row => row.dataset === 'hard' || row.phase === 'followup');
   const keys = rows.map(row => grouped ? row.id : row.name);
   const tickValues = [];
   const tickLabels = [];
   const dividers = [];
   for (const [index, row] of rows.entries()) {
-    if (grouped && row.dataset !== rows[index - 1]?.dataset) {
-      const section = `section:${row.dataset}`;
+    const group = paperResultsGroup(row, sort);
+    if (grouped && group !== paperResultsGroup(rows[index - 1], sort)) {
+      const section = `section:${group}`;
       tickValues.push(section);
-      tickLabels.push(`<b>${BENCHMARK_NAMES[row.dataset]}</b>`);
+      tickLabels.push(`<b>${PAPER_GROUP_NAMES[group]}</b>`);
       dividers.push({ type: 'line', xref: 'paper', yref: 'y',
         x0: 0, x1: 1, y0: section, y1: section,
-        line: { color: row.dataset === 'hard' ? '#cb181d' : '#bac7dc', width: 1 } });
+        line: { color: group === 'hard' ? '#cb181d' : '#bac7dc', width: 1 } });
     }
     tickValues.push(keys[index]);
     tickLabels.push(row.name);
@@ -137,7 +135,7 @@ export function paperResultsFigure(paper, sort, width, ranking, metric) {
   const layout = {
     width, height: tickValues.length * 34 + 160,
     shapes: dividers,
-    margin: { l: 224, r: 16, t: 146, b: 14 },
+    margin: { l: sort === 'paper' && rows.some(row => row.phase === 'followup') ? 267 : 224, r: 16, t: 146, b: 14 },
     barmode: 'stack', bargap: .16, showlegend: false, hovermode: 'closest', dragmode: false,
     paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { ...font, size: 12 },
     hoverlabel: { bgcolor: '#002d72', font: { color: '#f8f8fc' }, align: 'left' },
@@ -287,8 +285,47 @@ export function sourceOmissionFigure(rows, width) {
   return { traces, layout };
 }
 
+export function combinedSourceOmissionRows(counts, pooled = counts) {
+  const datasets = ['original', 'hard'];
+  const byDataset = Object.fromEntries(datasets.map(dataset => [dataset,
+    new Map(sourceOmissionRows(counts[dataset] ?? {}, pooled[dataset] ?? {}).map(row => [row.language, row]))]));
+  const languages = new Set(datasets.flatMap(dataset => [...byDataset[dataset].keys()]));
+  const orderingRate = language => omissionRate(pooled.original?.DP?.[language])
+    ?? omissionRate(pooled.original?.BP?.[language])
+    ?? omissionRate(pooled.hard?.DP?.[language])
+    ?? omissionRate(pooled.hard?.BP?.[language]) ?? 0;
+  return [...languages].sort((a, b) => orderingRate(b) - orderingRate(a) || a.localeCompare(b))
+    .map(language => ({ language, original: byDataset.original.get(language) ?? {}, hard: byDataset.hard.get(language) ?? {} }));
+}
+
+export function combinedSourceOmissionFigure(rows, width) {
+  const names = rows.map(row => row.language);
+  const series = [
+    ['original', 'BP', 'Baseline prompt', '#8ab5da'],
+    ['original', 'DP', 'Diverse prompt', '#002d72'],
+    ['hard', 'BP', 'Baseline prompt', '#ec8e99'],
+    ['hard', 'DP', 'Diverse prompt', '#9e2435'],
+  ];
+  const traces = series.map(([dataset, task, label, color]) => ({
+    type: 'bar', orientation: 'h', name: `${BENCHMARK_NAMES[dataset]} · ${label}`, y: names,
+    x: rows.map(row => omissionRate(row[dataset][task])),
+    customdata: rows.map(row => row[dataset][task] ?? [0, 0]),
+    marker: { color },
+    hovertemplate: `<b>%{y}</b><br>${BENCHMARK_NAMES[dataset]} · ${label}: %{x:.1%}<br>%{customdata[0]} omissions / %{customdata[1]} opportunities<extra></extra>`,
+  }));
+  const {layout} = sourceOmissionFigure([], width);
+  return {traces, layout: {...layout,
+    height: Math.max(220, rows.length * 48 + 146),
+    margin: {...layout.margin, t: width < 600 ? 104 : 76},
+    legend: {...layout.legend, itemclick: false, itemdoubleclick: false, font: {size: width < 600 ? 9 : 11}},
+    showlegend: Boolean(rows.length),
+    yaxis: {...layout.yaxis, categoryarray: names},
+    annotations: rows.length ? [] : layout.annotations,
+  }};
+}
+
 export function mountSourceOmissions(host, fallback, status) {
-  return mountTablePlot(host, fallback, status, sourceOmissionFigure, ['.barlayer .trace', '.point']);
+  return mountTablePlot(host, fallback, status, combinedSourceOmissionFigure, ['.barlayer .trace', '.point']);
 }
 
 export function leaderboardFigure(rows, metric, cases, width) {
@@ -320,7 +357,8 @@ export function leaderboardFigure(rows, metric, cases, width) {
       cliponaxis: false,
     },
   ];
-  if (!cases) {
+  const hasScores = values.some(value => value != null);
+  if (!hasScores) {
     traces.push({ type: 'scatter', mode: 'markers', x: names.map(() => 0), y: names, opacity: 0, hoverinfo: 'skip' });
   }
   const layout = {
@@ -345,7 +383,7 @@ export function leaderboardFigure(rows, metric, cases, width) {
     },
     yaxis: { type: 'category', ticklabelstandoff: 9, showgrid: false, categoryorder: 'array', categoryarray: names, autorange: 'reversed', fixedrange: true,
       ...(grouped ? { tickmode: 'array', tickvals: names, ticktext: rows.map(row => row.name) } : {}) },
-    annotations: cases ? [] : [{
+    annotations: hasScores ? [] : [{
       text: 'No evaluated cases for these filters', x: .5, y: .5, xref: 'paper', yref: 'paper',
       showarrow: false, font: { size: 12 }, bgcolor: '#f8f8fc', borderpad: 7,
     }],

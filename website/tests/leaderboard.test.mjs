@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { leaderboardFigure, paperResultsFigure, paperResultsPreview, paperResultsRows } from '../src/leaderboard.mjs';
+import { leaderboardFigure, paperResultsFigure, paperResultsRows } from '../src/leaderboard.mjs';
 import { rankedRows } from '../src/state.mjs';
 
 const models = [
@@ -70,16 +70,6 @@ test('only the column controlling exact-score order is highlighted', async () =>
   assert.deepEqual(highlighted('ranking', 'DP'), [4.5]);
   assert.deepEqual(highlighted('10', 'DP'), [10.5]);
   assert.deepEqual(highlighted('paper', 'DP'), []);
-});
-
-test('the homepage preview shows the best published score for each foundational task', async () => {
-  const { readFile } = await import('node:fs/promises');
-  const paper = JSON.parse(await readFile(new URL('../paper-results.json', import.meta.url)));
-  assert.deepEqual(paperResultsPreview(paper), [
-    { measure: 'Narrative inclusion', name: 'Gemini 3.8 Flash (low)', score: 52.5 },
-    { measure: 'Narrative exclusion', name: 'Gemini 2.5 Pro', score: 74.2 },
-    { measure: 'Include Missing Narratives', name: 'Gemini 3.8 Flash (low)', score: 82.8 },
-  ]);
 });
 
 test('filtered scores keep the paper matrix shape and distinguish unavailable values from zero', async () => {
@@ -194,4 +184,60 @@ test('language gap color reflects magnitude and signs show direction', async () 
   assert.deepEqual(trace.customdata.map(point=>point[3]), [0, 12, -12]);
   assert.equal(trace.marker.cmin, 0);
   assert.equal(trace.marker.cmax, 50);
+});
+
+
+test('combined omission chart displays both cohorts without pooling counts or hiding missing model runs', async () => {
+  const { combinedSourceOmissionRows, combinedSourceOmissionFigure } = await import('../src/leaderboard.mjs');
+  const original = { DP: { English: [1, 10], Arabic: [3, 5] }, BP: { English: [2, 10] } };
+  const hard = { DP: { English: [9, 30], French: [1, 5] }, BP: { English: [4, 10] } };
+  const rows = combinedSourceOmissionRows({original, hard});
+  const { traces, layout } = combinedSourceOmissionFigure(rows, 700);
+  assert.equal(traces.length, 4);
+  const index = rows.findIndex(row => row.language === 'English');
+  assert.deepEqual(traces.map(trace => trace.x[index]), [.2, .1, .4, .3]);
+  assert.deepEqual(traces.map(trace => trace.customdata[index]), [[2,10],[1,10],[4,10],[9,30]]);
+  assert.equal(layout.legend.itemclick, false);
+  const unavailable = combinedSourceOmissionRows({ original, hard: undefined }, { original, hard });
+  const missing = combinedSourceOmissionFigure(unavailable, 700).traces[3];
+  assert.ok(missing.x.every(rate => rate === null));
+});
+
+test('highlighting a model preserves both evaluations and all language rows in both axes', async () => {
+  const { languageGridFigure } = await import('../src/language-disparities.mjs');
+  const metric = [{ language:'en', gap:0, score:80, english:80, cases:20 }];
+  const row = { id:'a', name:'A', languages:{ query:metric, source:metric } };
+  const data = {original:[row,{...row,id:'b',name:'B'}],hard:[row]};
+  for (const axis of ['query','source']) {
+    const settings = {data,cohort:'both',selected:'a',axis,languages:{en:'English'}};
+    const { traces:[trace] } = languageGridFigure(settings,900);
+    assert.deepEqual(trace.y,['A · NarrativeBench','B · NarrativeBench','A · NarrativeBench Hard']);
+    assert.deepEqual(trace.marker.opacity,[1,.42,1]);
+  }
+});
+
+
+test('paper order distinguishes published and follow-up rows while ranking sorts within each evaluation', async () => {
+  const { combinedResults, filteredResults, paperResultsGroup } = await import('../src/leaderboard.mjs');
+  const paper = {
+    columns: [{task:'NI', description:'Narrative inclusion', unit:'%'}], palette:['#fff','#f00'],
+    rows: [
+      {id:'old', name:'Published model', phase:'published', cells:[{value:50,display:'50.0 (1.0)'}]},
+      {id:'followup', name:'Gemini 4 test', phase:'followup', cells:[{value:90,display:'90.0'}]},
+    ],
+  };
+  const hard = {...paper,rows:[{id:'followup',name:'Gemini 4 test',phase:'hard',cells:[{value:75,display:'75.0'}]}]};
+  const ranking = [{id:'followup'},{id:'old'},{id:'followup--hard'}];
+  const combined = combinedResults(paper,hard);
+  const ordered = paperResultsFigure(combined,'paper',1240,ranking,'NI');
+  assert.deepEqual(ordered.layout.yaxis.categoryarray,['section:original','old','section:followup','followup','section:hard','followup--hard']);
+  assert.deepEqual(ordered.layout.yaxis.ticktext,['<b>NarrativeBench</b>','Published model','<b>Gemini 4 follow-up (NarrativeBench)</b>','Gemini 4 test','<b>NarrativeBench Hard</b>','Gemini 4 test']);
+  assert.deepEqual(ordered.traces[0].text,['50.0 (1.0)','90.0','75.0']);
+  assert.equal(ordered.layout.annotations.filter(header=>header.bgcolor).length,0);
+  const ranked = paperResultsFigure(combined,'ranking',1240,ranking,'NI');
+  assert.deepEqual(ranked.layout.yaxis.categoryarray,['section:original','followup','old','section:hard','followup--hard']);
+  assert.equal(ranked.layout.annotations.filter(header=>header.bgcolor).length,1);
+  assert.equal(paperResultsGroup(combined.rows[1],'0'),'original');
+  const filtered = filteredResults(paper, {scores:{old:{NI:.7},followup:{NI:.8}}});
+  assert.deepEqual(filtered.rows.map(row=>row.phase),['published','followup']);
 });

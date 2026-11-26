@@ -1,6 +1,6 @@
 import { formatAnswer } from './answer-format.mjs';
-import { BENCHMARK_NAMES, combinedResults, filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsPreview, paperResultsRows, paperSortColumn, sourceOmissionRows } from './leaderboard.mjs';
-import { parseRoute, queryLanguages, queryScrollState, resolveSelection, sliceRanking } from './state.mjs';
+import { BENCHMARK_NAMES, PAPER_GROUP_NAMES, paperResultsGroup, combinedResults, filteredResults, mountLeaderboardPlot, mountPaperResults, mountSourceOmissions, paperResultsRows, paperSortColumn, combinedSourceOmissionRows } from './leaderboard.mjs';
+import { evaluationModels, parseRoute, queryLanguages, queryScrollState, resolveModelSelection, resolveSelection, sliceRanking } from './state.mjs';
 
 const TASKS = {
   NI: 'Narrative inclusion',
@@ -17,7 +17,7 @@ const LANGUAGE_STATUS = {
   unknown: 'Language uncertain',
 };
 const DEFAULT_TOPIC = 'gaza';
-const DEFAULT_MODELS = ['gemini-4-hydrogen-xhigh', 'gemini-4-argon-low'];
+const DEFAULT_MODELS = ['gemini-4-hydrogen-xhigh', 'gemini-4-hydrogen-xhigh--hard'];
 const $ = id => document.getElementById(id);
 const number = new Intl.NumberFormat('en');
 const percent = value => `${(Math.round(value * 1000) / 10).toFixed(1)}%`;
@@ -34,10 +34,8 @@ let matrixCaption = 'Benchmark results';
 let rankingKey;
 let ranking;
 let sourceKey;
-let paperSort = 'ranking';
+let paperSort = 'paper';
 let catalog;
-let activeBenchmark;
-let originalPaper;
 let hardMatrix;
 let hardCatalog;
 let hardSlices;
@@ -48,6 +46,7 @@ let renderId = 0;
 let lastPage;
 let queryListKey;
 let loadedCase;
+let loadedCaseContext;
 
 function data(path) {
   if (!cache.has(path)) {
@@ -66,8 +65,8 @@ function data(path) {
   return cache.get(path);
 }
 
-function datasetData(path) {
-  return data((activeBenchmark === 'hard' ? 'hard/' : '') + path);
+function datasetData(dataset, path) {
+  return data((dataset === 'hard' ? 'hard/' : '') + path);
 }
 
 function element(tag, text, className) {
@@ -90,7 +89,7 @@ function hashFor(route) {
 }
 
 function changeRoute(changes) {
-  const hash = hashFor({ ...parseRoute(location.hash), ...changes });
+  const hash = hashFor({ ...parseRoute(location.hash), section: undefined, ...changes });
   if (hash === location.hash) render();
   else location.hash = hash;
 }
@@ -133,14 +132,15 @@ function renderPaperResults() {
     head.append(heading);
   }
   let body;
-  let dataset;
+  let group;
   for (const model of paperResultsRows(matrix, paperSort, ranking)) {
-    if (model.dataset !== dataset) {
-      dataset = model.dataset;
+    const nextGroup = paperResultsGroup(model, paperSort);
+    if (nextGroup !== group) {
+      group = nextGroup;
       body = table.createTBody();
       const titleRow = body.insertRow();
-      titleRow.className = `score-group-heading score-group-heading-${dataset}`;
-      const title = element('th', BENCHMARK_NAMES[dataset]);
+      titleRow.className = `score-group-heading score-group-heading-${group}`;
+      const title = element('th', PAPER_GROUP_NAMES[group]);
       title.scope = 'rowgroup';
       title.colSpan = matrix.columns.length + 1;
       titleRow.append(title);
@@ -154,26 +154,8 @@ function renderPaperResults() {
   plotPaper(matrix, paperSort, ranking, metric);
 }
 
-async function renderResultsPreview() {
-  if (!$('results-preview-table').hidden) return;
-  try {
-    originalPaper ??= await data('paper-results');
-  } catch {
-    return;
-  }
-  const body = $('results-preview-rows');
-  body.replaceChildren(...paperResultsPreview(originalPaper).map(({ measure, name, score }) => {
-    const row = element('tr');
-    const heading = element('th', measure);
-    heading.scope = 'row';
-    row.append(heading, element('td', name), element('td', `${score.toFixed(1)}%`, 'number'));
-    return row;
-  }));
-  $('results-preview-table').hidden = false;
-}
-
 function renderSourceOmissions(data, pooled, label) {
-  const rows = sourceOmissionRows(data, pooled);
+  const rows = combinedSourceOmissionRows(data, pooled);
   const fallback = $('source-fallback');
   if (!rows.length) {
     fallback.replaceChildren(element('p', 'No source-language cases for these filters.'));
@@ -183,7 +165,7 @@ function renderSourceOmissions(data, pooled, label) {
   const table = element('table');
   table.append(element('caption', `Source-language omission by prompt · ${label}`, 'sr-only'));
   const header = table.createTHead().insertRow();
-  for (const name of ['Source language', 'Baseline prompt', 'Diverse prompt']) {
+  for (const name of ['Source language', ...Object.values(BENCHMARK_NAMES).flatMap(name => [`${name}: Baseline prompt`, `${name}: Diverse prompt`])]) {
     const heading = element('th', name);
     heading.scope = 'col';
     header.append(heading);
@@ -194,7 +176,7 @@ function renderSourceOmissions(data, pooled, label) {
     const heading = element('th', item.language);
     heading.scope = 'row';
     row.append(heading);
-    for (const counts of [item.BP, item.DP]) {
+    for (const counts of [item.original.BP, item.original.DP, item.hard.BP, item.hard.DP]) {
       const text = counts ? `${percent(counts[0] / counts[1])} (${number.format(counts[0])} / ${number.format(counts[1])})` : '—';
       row.append(element('td', text, 'number'));
     }
@@ -203,30 +185,39 @@ function renderSourceOmissions(data, pooled, label) {
   plotOmissions(rows);
 }
 
-async function updateSourceOmissions(topic, lang, model, pooled, run) {
-  const key = `${activeBenchmark}/${topic}/${lang}/${model?.id ?? ''}`;
+async function updateSourceOmissions(topic, lang, models, selected, pooled, run) {
+  const key = `${topic}/${lang}/${selected ?? ''}`;
   const status = $('source-status');
   if (status.hasAttribute('data-model-error')) {
-    status.hidden = true;
     delete status.dataset.modelError;
+    status.hidden = true;
   }
   if (sourceKey === key) return;
   let counts = pooled;
-  if (model) {
+  if (selected) {
     try {
-      const slices = await data(`${model.dataset === 'hard' ? 'hard/' : ''}source-omissions/${model.baseId ?? model.id}`);
-      counts = slices[topic]?.[lang];
+      const entries = await Promise.all(['original', 'hard'].map(async dataset => {
+        if (!models.some(model => model.dataset === dataset && model.baseId === selected)) return [dataset, undefined];
+        const slices = await datasetData(dataset, `source-omissions/${selected}`);
+        return [dataset, slices[topic]?.[lang]];
+      }));
+      counts = Object.fromEntries(entries);
     } catch {
       if (run !== renderId) return;
       status.dataset.modelError = '';
-      status.textContent = `Source-language results for ${model.name} could not load.`;
+      status.textContent = 'Source-language results for this model could not load.';
       status.hidden = false;
       return;
     }
   }
   if (run !== renderId) return;
-  const label = model?.name ?? 'All model configurations';
-  $('source-scope').textContent = label;
+  const model = models.find(model => model.baseId === selected);
+  const label = model?.name ?? 'All model configurations in each evaluation';
+  const missing = selected && ['original', 'hard'].filter(dataset => !models.some(model => model.dataset === dataset && model.baseId === selected));
+  const pooledLabel = `${catalog.models.length} NarrativeBench configurations and ${hardCatalog.models.length} NarrativeBench Hard configurations. Select a configuration evaluated on both to compare the same model.`;
+  $('source-scope').textContent = missing?.length
+    ? `${label} was not evaluated on ${missing.map(dataset => BENCHMARK_NAMES[dataset]).join(' or ')}.`
+    : selected ? label : pooledLabel;
   sourceKey = key;
   renderSourceOmissions(counts, pooled, label);
 }
@@ -236,32 +227,31 @@ async function renderLeaderboard(route, run) {
   const topics = sortedTopics();
   const topic = topics.some(item => item.id === route.topic) ? route.topic : 'all';
   const lang = Object.hasOwn(catalog.languages, route.lang) ? route.lang : 'all';
-  hardCatalog ??= await data('hard/catalog');
-  if (run !== renderId) return;
-  const sourceModels = [...catalog.models, ...hardCatalog.models.map(model => ({...model, id:`${model.id}--hard`, baseId:model.id, name:`${model.name} · ${BENCHMARK_NAMES.hard}`, dataset:'hard'}))];
-  const sourceModel = sourceModels.find(model => model.id === route.sourceModel);
-  const modelOptions = sourceModels.map(({ id, name }) => [id, name]).sort((a, b) => a[1].localeCompare(b[1]));
-  options($('source-model'), [['', 'All NarrativeBench configurations'], ...modelOptions], sourceModel?.id ?? '');
+  const sourceModels = evaluationModels(catalog.models, hardCatalog.models);
+  const selectedModelId = route.sourceModel?.replace(/--hard$/, '');
+  const sourceModel = sourceModels.find(model => model.baseId === selectedModelId);
+  const modelOptions = [...new Map(sourceModels.map(({ baseId, name }) => [baseId, name]))]
+    .sort((a, b) => a[1].localeCompare(b[1]));
+  options($('source-model'), [['', 'All model configurations in each evaluation'], ...modelOptions], sourceModel?.baseId ?? '');
   options($('rank-topic'), [['all', 'All topics'], ...topics.map(item => [item.id, item.label])], topic);
   options($('rank-language'), [['all', 'All query languages'], ...sortedLanguages()], lang);
   const hash = hashFor({
     page: 'leaderboard', metric: metric === 'NI' ? undefined : metric,
     topic: topic === 'all' ? undefined : topic, lang: lang === 'all' ? undefined : lang,
-    sourceModel: sourceModel?.id, benchmark: activeBenchmark === 'hard' ? 'hard' : undefined,
+    sourceModel: sourceModel?.baseId,
   });
   history.replaceState(null, '', hash);
   $('nav-leaderboard').href = hash;
-  const key = `${activeBenchmark}/${topic}/${lang}`;
+  const key = `${topic}/${lang}`;
   const filtered = topic !== 'all' || lang !== 'all';
-  const [results, slices, omissions, hardResults, hardRuns, hardFiltered] = await Promise.all([
+  const [results, slices, omissions, hardResults, hardFiltered, hardOmissions] = await Promise.all([
     paper ?? data('paper-results'), filtered ? data('rankings') : null, filtered ? null : data('source-omissions'),
-    hardMatrix ?? data('hard/paper-results'), hardCatalog ?? data('hard/catalog'),
-    filtered ? (hardSlices ?? data('hard/rankings')) : null,
+    hardMatrix ?? data('hard/paper-results'), filtered ? (hardSlices ?? data('hard/rankings')) : null,
+    filtered ? null : data('hard/source-omissions'),
   ]);
   if (run !== renderId) return;
   paper = results;
   hardMatrix = hardResults;
-  hardCatalog = hardRuns;
   if (hardFiltered) hardSlices = hardFiltered;
   const hardSlice = hardFiltered?.[topic]?.[lang];
   const slice = slices?.[topic]?.[lang];
@@ -275,7 +265,7 @@ async function renderLeaderboard(route, run) {
       topics.find(item => item.id === topic)?.label ?? 'All topics',
       catalog.languages[lang] ?? 'All query languages',
     ];
-    if (filtered && !slice) scope.push('No evaluated cases');
+    if (filtered && !slice && !hardSlice) scope.push('No evaluated cases');
     matrixCaption = filtered ? `Benchmark results · ${scope.join(' · ')}` : 'Benchmark results';
     matrix = combinedResults(filtered ? filteredResults(paper, slice) : paper,
       filtered ? filteredResults(hardResults, hardSlice) : hardResults);
@@ -288,7 +278,7 @@ async function renderLeaderboard(route, run) {
     rankingKey = rankKey;
     const selection = sliceRanking(catalog, slices, topic, lang, metric);
     const originalRanking = selection?.rows ?? catalog.models.map(model => ({ ...model, value: null, rank: null }));
-    const hardRanking = sliceRanking(hardRuns, hardFiltered, topic, lang, metric)?.rows ?? hardRuns.models.map(model => ({ ...model, value: null, rank: null }));
+    const hardRanking = sliceRanking(hardCatalog, hardFiltered, topic, lang, metric)?.rows ?? hardCatalog.models.map(model => ({ ...model, value: null, rank: null }));
     ranking = [...originalRanking, ...hardRanking.map(row => ({
       ...row, id: `${row.id}--hard`, dataset: 'hard',
     }))];
@@ -297,7 +287,10 @@ async function renderLeaderboard(route, run) {
     plotRanking(ranking, `${measure.description} (${measure.metric})`, cases);
   }
   if (matrixChanged || (rankingChanged && paperSort === 'ranking')) renderPaperResults();
-  await updateSourceOmissions(topic, lang, sourceModel, filtered ? slice?.sourceOmissions : omissions, run);
+  await updateSourceOmissions(topic, lang, sourceModels, sourceModel?.baseId, {
+    original: filtered ? slice?.sourceOmissions : omissions,
+    hard: filtered ? hardSlice?.sourceOmissions : hardOmissions,
+  }, run);
 }
 
 const queryList = $('queries');
@@ -423,52 +416,47 @@ function renderAnswer(container, response, lang) {
   currentResponses.set(container, response);
 }
 
-function renderCaseDetails(item, sources) {
-  if (loadedCase === item.id) return;
-  const context = $('case-context');
-  context.replaceChildren();
-  for (const [label, value] of [
-    ['System instruction', item.instruction], ['Query context', item.context],
-    ['Fixed prior answer', item.priorAnswer], ['Follow-up instruction', item.followup],
-  ]) {
-    if (!value) continue;
-    const text = element('p', value);
-    text.dir = 'auto';
-    context.append(element('h3', label), text);
-  }
-  const list = element('ul');
-  for (const id of item.sources) {
-    const source = sources[id];
-    const label = [id, source.publisher, source.region, source.language].filter(Boolean).join(' · ');
-    const row = element('li');
-    if (source.url) {
-      const link = element('a', label);
-      link.href = source.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      row.append(link);
-    } else {
-      row.textContent = label;
+function renderCaseDetails(items, sources, caseId) {
+  const caseContext = `${caseId}/${Object.keys(items).join('/')}`;
+  if (loadedCaseContext === caseContext) return;
+  const evaluations = $('case-evaluations');
+  evaluations.replaceChildren();
+  for (const [dataset, item] of Object.entries(items)) {
+    const context = element('section', undefined, 'case-evaluation');
+    context.append(element('h3', `${BENCHMARK_NAMES[dataset]} · ${item.sources.length} supplied articles`, 'case-evaluation-heading'));
+    for (const [label, value] of [
+      ['System instruction', item.instruction], ['Query context', item.context],
+      ['Fixed prior answer', item.priorAnswer], ['Follow-up instruction', item.followup],
+    ]) {
+      if (!value) continue;
+      const text = element('p', value);
+      text.dir = 'auto';
+      context.append(element('h4', label), text);
     }
-    list.append(row);
+    const list = element('ul');
+    for (const id of item.sources) {
+      const source = sources[id];
+      const label = [id, source.publisher, source.region, source.language].filter(Boolean).join(' · ');
+      const row = element('li');
+      if (source.url) {
+        const link = element('a', label);
+        link.href = source.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        row.append(link);
+      } else {
+        row.textContent = label;
+      }
+      list.append(row);
+    }
+    context.append(element('h4', 'Articles supplied to the models'), list);
+    evaluations.append(context);
   }
-  $('case-sources').replaceChildren(element('h3', 'Articles supplied to the models'), list);
-  loadedCase = item.id;
+  loadedCase = caseId;
+  loadedCaseContext = caseContext;
 }
 
-async function renderExplorer(route, run) {
-  const topics = sortedTopics();
-  const topic = topics.find(item => item.id === route.topic)
-    ?? topics.find(item => item.id === DEFAULT_TOPIC) ?? topics[0];
-  options($('topic'), topics.map(item => [item.id, item.label]), topic.id);
-  if ($('topic-title').textContent !== topic.label) $('topic-title').textContent = topic.label;
-  const scope = route.scope === 'dataset' ? 'dataset' : 'benchmark';
-  const mode = ['conflicts', 'queries'].includes(route.pins) ? route.pins : 'both';
-  const mapLang = Object.hasOwn(catalog.languages, route.mapLang) ? route.mapLang : '';
-  for (const button of document.querySelectorAll('[data-scope]')) {
-    button.setAttribute('aria-pressed', String(button.dataset.scope === scope));
-  }
-  const answerReader = $('answer-reader');
+const answerReader = $('answer-reader');
 const readerOpener = $('open-answer-reader');
 readerOpener.hidden = typeof answerReader.showModal !== 'function';
 readerOpener.addEventListener('click', () => {
@@ -488,7 +476,20 @@ for (const button of answerTabs) {
     for (const tab of answerTabs) tab.setAttribute('aria-pressed', String(tab === button));
   });
 }
-for (const button of document.querySelectorAll('[data-pins]')) {
+
+async function renderExplorer(route, run) {
+  const topics = sortedTopics();
+  const topic = topics.find(item => item.id === route.topic)
+    ?? topics.find(item => item.id === DEFAULT_TOPIC) ?? topics[0];
+  options($('topic'), topics.map(item => [item.id, item.label]), topic.id);
+  if ($('topic-title').textContent !== topic.label) $('topic-title').textContent = topic.label;
+  const scope = route.scope === 'dataset' ? 'dataset' : 'benchmark';
+  const mode = ['conflicts', 'queries'].includes(route.pins) ? route.pins : 'both';
+  const mapLang = Object.hasOwn(catalog.languages, route.mapLang) ? route.mapLang : '';
+  for (const button of document.querySelectorAll('[data-scope]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.scope === scope));
+  }
+  for (const button of document.querySelectorAll('[data-pins]')) {
     button.setAttribute('aria-pressed', String(button.dataset.pins === mode));
   }
   options($('map-language'), [['', 'All languages'], ...sortedLanguages()], mapLang);
@@ -529,17 +530,17 @@ for (const button of document.querySelectorAll('[data-pins]')) {
   options($('task'), tasks, task);
   if (!caseId) $('task').append(new Option('No recorded evaluation', ''));
 
-  const modelIds = new Set(catalog.models.map(model => model.id));
-  const left = modelIds.has(route.left) ? route.left : modelIds.has(DEFAULT_MODELS[0]) ? DEFAULT_MODELS[0] : catalog.models[0].id;
-  const right = modelIds.has(route.right) ? route.right : modelIds.has(DEFAULT_MODELS[1]) ? DEFAULT_MODELS[1] : catalog.models.at(-1).id;
+  const models = evaluationModels(catalog.models, hardCatalog.models);
+  const legacyBenchmark = route.benchmark;
+  const left = resolveModelSelection(models, route.left, legacyBenchmark, DEFAULT_MODELS[0]);
+  const right = resolveModelSelection(models, route.right, legacyBenchmark, DEFAULT_MODELS[1]);
   const resolved = {
-    page: 'explorer', topic: topic.id, lang, query: query?.id, task, left, right,
+    page: 'explorer', topic: topic.id, lang, query: query?.id, task, left: left.id, right: right.id,
     pins: mode === 'both' ? undefined : mode, scope: scope === 'benchmark' ? undefined : scope, mapLang,
-    benchmark: activeBenchmark === 'hard' ? 'hard' : undefined,
   };
-  const hash = hashFor(resolved);
+  const hash = hashFor({ ...resolved, section: route.section === 'poster' ? 'poster' : undefined });
   history.replaceState(null, '', hash);
-  $('nav-explorer').href = hash;
+  $('nav-explorer').href = hashFor(resolved);
 
   if (caseId !== loadedCase) {
     $('answer-grid').hidden = true;
@@ -550,25 +551,31 @@ for (const button of document.querySelectorAll('[data-pins]')) {
     showDatasetAnswerStatus(query, lang);
     return;
   }
-  let item;
+  let items;
   let sources;
+  const datasets = [...new Set([left.dataset, right.dataset])].sort((a, b) => Number(a === 'hard') - Number(b === 'hard'));
   try {
-    [item, sources] = await Promise.all([datasetData(`cases/${caseId}`), data('sources')]);
+    const [entries, articles] = await Promise.all([
+      Promise.all(datasets.map(async dataset => [dataset, await datasetData(dataset, `cases/${caseId}`)])),
+      data('sources'),
+    ]);
+    items = Object.fromEntries(entries);
+    sources = articles;
   } catch {
     if (renderId === run) setAnswerStatus('The recorded answers could not load.', true);
     return;
   }
   if (renderId !== run) return;
 
-  $('answer-question').textContent = item.query;
-  renderCaseDetails(item, sources);
+  $('answer-question').textContent = items[left.dataset].query;
+  renderCaseDetails(items, sources, caseId);
   $('case-details').hidden = false;
-  const models = [...catalog.models].sort((a, b) => a.name.localeCompare(b.name))
-    .map(model => [model.id, model.name]);
-  options($('left-model'), models, left);
-  options($('right-model'), models, right);
-  renderAnswer($('left-answer'), item.responses[left], lang);
-  renderAnswer($('right-answer'), item.responses[right], lang);
+  const modelOptions = models.sort((a, b) => Number(a.dataset === 'hard') - Number(b.dataset === 'hard') || a.name.localeCompare(b.name))
+    .map(model => [model.id, `${model.name} · ${BENCHMARK_NAMES[model.dataset]}`]);
+  options($('left-model'), modelOptions, left.id);
+  options($('right-model'), modelOptions, right.id);
+  renderAnswer($('left-answer'), items[left.dataset].responses[left.baseId], lang);
+  renderAnswer($('right-answer'), items[right.dataset].responses[right.baseId], lang);
   setAnswerStatus('');
   $('answer-grid').hidden = false;
 }
@@ -581,33 +588,28 @@ async function render() {
   $('explorer').hidden = !explorer;
   $('leaderboard').hidden = explorer;
   $('app-error').hidden = true;
-  const active = $(explorer ? 'nav-explorer' : 'nav-leaderboard');
-  $(explorer ? 'nav-leaderboard' : 'nav-explorer').removeAttribute('aria-current');
-  active.setAttribute('aria-current', 'page');
-  document.title = explorer ? 'NarrativeBench Explorer' : 'NarrativeBench Leaderboard';
+  const activeNav = explorer ? (route.section === 'poster' ? 'nav-poster' : 'nav-explorer') : 'nav-leaderboard';
+  for (const id of ['nav-explorer', 'nav-leaderboard', 'nav-poster']) {
+    if (id === activeNav) $(id).setAttribute('aria-current', 'page');
+    else $(id).removeAttribute('aria-current');
+  }
+  document.title = explorer ? 'The Narrative Gap | NarrativeBench' : 'Full results | NarrativeBench';
   if (lastPage && lastPage !== route.page) {
     window.scrollTo(0, 0);
     $('main').focus({ preventScroll: true });
   }
   lastPage = route.page;
   try {
-    const benchmark = explorer && route.benchmark === 'hard' ? 'hard' : 'original';
-    if (activeBenchmark !== benchmark) {
-      const next = await data(benchmark === 'hard' ? 'hard/catalog' : 'catalog');
+    if (!catalog || !hardCatalog) {
+      const [original, hard] = await Promise.all([data('catalog'), data('hard/catalog')]);
       if (run !== renderId) return;
-      activeBenchmark = benchmark;
-      catalog = next;
-      paper = undefined;
-      matrixKey = undefined;
-      rankingKey = undefined;
-      sourceKey = undefined;
-      loadedCase = undefined;
-      for (const select of document.querySelectorAll('[data-benchmark]')) select.value = benchmark;
+      catalog = original;
+      hardCatalog = hard;
     }
     if (run !== renderId) return;
     if (explorer) {
-      void renderResultsPreview();
       await renderExplorer(route, run);
+      if (run === renderId && route.section === 'poster') scrollToSection('poster');
     } else await renderLeaderboard(route, run);
   } catch {
     if (run === renderId) $('app-error').hidden = false;
@@ -625,9 +627,9 @@ function scrollToSection(id) {
 }
 
 $('open-map').addEventListener('click', () => scrollToSection('globe-section'));
-$('results-preview-link').addEventListener('click', () => {
-  if (paperSort === 'ranking') return;
-  paperSort = 'ranking';
+$('results-preview-link')?.addEventListener('click', () => {
+  if (paperSort === 'paper') return;
+  paperSort = 'paper';
   matrixKey = undefined;
 });
 $('metric-guide-link').addEventListener('click', event => {
@@ -635,6 +637,15 @@ $('metric-guide-link').addEventListener('click', event => {
   $('score-method').open = true;
   scrollToSection('score-method');
 });
+for (const link of document.querySelectorAll('a[href="#poster"]')) {
+  link.addEventListener('click', event => {
+    event.preventDefault();
+    const explorerRoute = parseRoute(new URL($('nav-explorer').href).hash);
+    const hash = hashFor({ ...explorerRoute, page: 'explorer', section: 'poster' });
+    if (hash === location.hash) scrollToSection('poster');
+    else location.hash = hash;
+  });
+}
 $('nav-cite').addEventListener('click', event => {
   event.preventDefault();
   scrollToSection('cite');
@@ -643,9 +654,6 @@ $('paper-sort').addEventListener('change', event => {
   paperSort = event.target.value;
   renderPaperResults();
 });
-for (const select of document.querySelectorAll('[data-benchmark]')) {
-  select.addEventListener('change', event => changeRoute({ benchmark: event.target.value === 'hard' ? 'hard' : undefined }));
-}
 $('metric').addEventListener('change', event => {
   paperSort = 'ranking';
   changeRoute({ metric: event.target.value });

@@ -17,6 +17,11 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(evaluation.count('id="paper-matrix"'), 1)
         self.assertNotIn('id="results-benchmark"', evaluation)
         self.assertNotIn('id="hard-comparison"', evaluation)
+        for control in ('data-benchmark', 'id="explorer-benchmark"', 'id="disparity-cohort"', 'id="disparity-axis"'):
+            self.assertNotIn(control, page)
+        for plot in ('id="disparity-plot"', 'id="language-grid"', 'id="source-language-grid"', 'id="source-plot"'):
+            self.assertEqual(evaluation.count(plot), 1)
+        self.assertIn('id="case-evaluations"', page)
         self.assertNotIn('awaiting submission', evaluation)
 
     def test_public_page_uses_benchmark_names_and_omits_internal_results(self):
@@ -25,6 +30,30 @@ class BuildTests(unittest.TestCase):
                      "Published results", "Steering across a conversation", "Evidence position"):
             self.assertNotIn(text, page)
         self.assertFalse((build.HERE / "runs/additional-evaluations.json").exists())
+
+    def test_result_matrix_keeps_published_and_matched_hard_model_order(self):
+        import json
+        paper = json.loads((build.HERE / "paper-results.json").read_text())
+        runs = json.loads((build.HERE / "runs/manifest.json").read_text())["runs"]
+        published = [{"id": row["id"], "name": row["name"]} for row in paper["rows"]]
+        followups = [{"id": row["model_id"], "name": row["name"]} for row in runs if row["dataset"] == "original"]
+        hard = [{"id": row["model_id"], "name": row["name"]} for row in runs if row["dataset"] == "hard"]
+        models = list(reversed(published)) + followups
+        aggregate = {
+            "scores": {model["id"]: {column["task"]: .5 for column in paper["columns"] if column["task"]} for model in models},
+            "diagnostics": {model["id"]: {column["diagnostic"]: 1 for column in paper["columns"] if not column["task"]} for model in models},
+            "modelCounts": {model["id"]: {"NI": 960} for model in models},
+        }
+        original_matrix = build.results_matrix(paper, aggregate, models, published=paper)
+        expected = [model["id"] for model in published + followups]
+        self.assertEqual([row["id"] for row in original_matrix["rows"]], expected)
+        self.assertEqual([row["phase"] for row in original_matrix["rows"]], ["published"] * len(published) + ["followup"] * len(followups))
+        self.assertEqual([[cell["display"] for cell in row["cells"]] for row in original_matrix["rows"][:len(published)]],
+                         [[cell["display"] for cell in row["cells"]] for row in paper["rows"]])
+        hard_matrix = build.results_matrix(paper, aggregate, hard, model_order=expected)
+        self.assertEqual([row["id"] for row in hard_matrix["rows"]],
+                         ["gemini-4-argon-low", "gemini-4-carbon-high", "gemini-4-hydrogen-xhigh"])
+        self.assertEqual([row["phase"] for row in hard_matrix["rows"]], ["hard"] * len(hard))
 
     def test_verifies_release_input_hashes(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -130,8 +159,8 @@ class BuildTests(unittest.TestCase):
     def test_front_page_includes_the_framework_and_arxiv_citation(self):
         source = build.HERE / "src"
         page = (source / "index.html").read_text()
-        for label in ("Include narratives", "Exclude narratives", "Include Missing Narratives",
-                      "Present diverse narratives", "Preserve coverage under confirmatory queries",
+        for label in ("Ask for one narrative", "Leave one out", "Find what’s missing",
+                      "Show competing narratives", "Preserve coverage under confirmatory queries",
                       "Provide comparable access across languages", "Filter bubbles", "Echo chambers",
                       "Linguistic disparities"):
             self.assertIn(label, page)
@@ -147,15 +176,14 @@ class BuildTests(unittest.TestCase):
         hero_end = page.index("</header>", page.index('<header class="research-hero">')) + len("</header>")
         capabilities = page.index('<section class="capability-overview"')
         finding = page[hero_end:capabilities].strip()
-        self.assertTrue(finding.startswith('<a class="results-preview"'))
-        self.assertRegex(
-            finding,
-            r'<h2[^>]*>The <mark>illusion of knowledge</mark> and <mark>control</mark></h2>'
-            r'\s*<p[^>]*>Asking for diverse perspectives does not mean you receive them\.</p>',
-        )
-        self.assertIn("illusion of control", finding)
-        self.assertIn("illusion of knowledge", finding)
-        self.assertIn('id="results-preview-table"', finding)
+        self.assertIn('id="results-preview-link"', finding)
+        self.assertIn('id="paper-mean-preview"', finding)
+        self.assertRegex(finding, r'illusion of knowledge.*control')
+        for value in ("19.9", "49.2", "8.74", "7.51"):
+            self.assertIn(value, finding)
+        self.assertNotIn("Best scores", finding)
+        self.assertNotIn('id="results-preview-table"', finding)
+        self.assertIn('id="poster"', page)
         before, evaluation = page.split('<details class="score-method"', 1)
         evaluation, after = evaluation.split("</details>", 1)
         self.assertIn("Responses outside the query language receive a score of zero.", evaluation)

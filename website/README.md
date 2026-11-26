@@ -8,13 +8,13 @@ NarrativeBench contains 4,800 evaluation cases across 460 questions, 23 topics, 
 
 NarrativeBench Hard supplies every released article for each topic. Contexts grow from 24 to 59 articles on average and reach 238 articles, while preserving the questions, tasks, and labeled narratives. Hydrogen XHigh and Argon Low have 4,800 responses each. Carbon High completed 4,529 cases. Tables and tooltips use the completed case counts for each model and task.
 
-The language-disparity view plots the mean absolute score gap from English for query languages against the corresponding gap for target narrative languages. Lines connect the same model on NarrativeBench and NarrativeBench Hard. The language grid shows individual signed gaps from English and their case counts. It covers all topics and query languages. Query-language comparisons pool the five tasks. Target narrative-language comparisons pool inclusion and exclusion by the target narrative's publication language.
+The language-disparity view plots the mean absolute score gap from English for query languages against the corresponding gap for target narrative languages. Lines connect the same model on NarrativeBench and NarrativeBench Hard. The two language grids show individual signed gaps from English and their case counts simultaneously. It covers all topics and query languages. Query-language comparisons pool the five tasks. Target narrative-language comparisons pool inclusion and exclusion by the target narrative's publication language.
 
 ## Build and data
 
 The public release is pinned in `release.json`. The response files and NarrativeBench Hard evaluation are pinned in `runs/manifest.json`. The build checks every file hash, validates both benchmarks, and replays all response scores from their citations and language labels. It retains the published table's standard errors and presents point estimates for follow-up runs. The public export contains questions, instructions, article IDs, answers, scores, and language assessments.
 
-The explorer links to source articles with attribution. The globe uses illustrative topic anchors and public-domain Natural Earth country polygons. The site hosts its fonts, author photographs, affiliation logos, and chart libraries locally.
+The explorer links to source articles with attribution. The globe uses illustrative topic anchors and public-domain Natural Earth country polygons. The site hosts its fonts, author photographs, affiliation logos, chart libraries, and conference poster locally. The homepage uses the conference poster’s archival newsprint, reporting imagery, and capability illustrations; sources are documented in `src/assets/poster/credits.md`. The highlighted mean results come directly from Section 5 of the paper and exclude later follow-up runs.
 
 Use Python 3.12 and Node.js 22 from the repository root.
 
@@ -34,7 +34,7 @@ The Pages workflow tests and builds changes on pull requests, then publishes the
 
 ## Compare NarrativeBench and Hard
 
-The results table displays the NarrativeBench configurations first and the three NarrativeBench Hard configurations below a divider, with a shared color scale. Sorting works within each dataset. Topic and query-language filters apply to both datasets. Language-disparity plots compare both evaluations, and individual Hard runs are also available in the source-language selector.
+The results table displays the NarrativeBench configurations first and the three NarrativeBench Hard configurations below a divider, with a shared color scale. Sorting works within each dataset. Topic and query-language filters apply to both datasets. Language-disparity plots compare both evaluations in one view. A model highlight preserves the other rows; the source-language selector keeps both evaluation traces visible when that configuration has runs in each. Explorer model selectors include the evaluation alongside the model, and each evaluation shows its own supplied prompt and sources.
 
 ## Open Eval export
 
