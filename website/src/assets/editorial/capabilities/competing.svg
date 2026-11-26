@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="110" viewBox="0 0 240 110" role="img" aria-labelledby="title desc">
+<title id="title">Show competing narratives</title><desc id="desc">Three different news pages are presented side by side, with none dominating the other.</desc>
+<style>
+      .motion { transform-box: fill-box; transform-origin: center; }
+      @media screen and (prefers-reduced-motion: no-preference) {
+        .select-pop { animation: select-pop 6s ease-in-out infinite; }
+        .select-trace { animation: select-trace 6s ease-in-out infinite; }
+        .excluded { animation: excluded 6s ease-in-out infinite; }
+        .search { animation: search 5.2s ease-in-out infinite; }
+        .compare-left { animation: compare-left 5.8s ease-in-out infinite; }
+        .compare-right { animation: compare-right 5.8s ease-in-out infinite; }
+        .prompt-wave { animation: pulse 5.8s ease-in-out infinite; }
+        .equal-mark { animation: pulse 6.5s ease-in-out infinite; }
+      }
+      @media print, (prefers-reduced-motion: reduce) { .motion, .select-trace { animation: none!important; } }
+      @keyframes select-pop { 0%,100% { transform: translateY(0); } 28%,46% {transform:translateY(-3px);} 66% {transform:translateY(0);} }
+      @keyframes select-trace { 0%,100%{opacity:1;} 35%{opacity:.52;} 60%{opacity:1;} }
+      @keyframes excluded { 0%,100%{transform:translateX(0) rotate(0deg);} 35%,48%{transform:translateX(4px) rotate(1.2deg);} 75%{transform:translateX(0) rotate(0deg);} }
+      @keyframes search {0%,100%{transform:translate(0,0);} 32%,48%{transform:translate(-5px,-1px);} 70%{transform:translate(0,0);} }
+      @keyframes compare-left {0%,100%{transform:translateX(0);} 35%,52%{transform:translateX(-3px);} 75%{transform:translateX(0);} }
+      @keyframes compare-right {0%,100%{transform:translateX(0);} 35%,52%{transform:translateX(3px);} 75%{transform:translateX(0);} }
+      @keyframes pulse {0%,100%{opacity:1;} 40%{opacity:.54;} 62%{opacity:1;}}
+</style>
+<path d="M16 104 C42 98 79 103 108 102 S164 99 223 104" stroke="#c8d0da" stroke-width="1.4" fill="none" opacity=".85"/>
+
+<g class="motion compare-left"><g transform="translate(13 18) rotate(-7 35 39)" opacity="1">
+      <g transform="scale(0.8333 1.1143)">
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" transform="translate(2.4 3.0)" fill="#263c57" opacity=".19"/>
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" fill="#fffdf8" stroke="#102c4a" stroke-width="2.1" stroke-linejoin="round"/>
+        <path d="M8 11H76" stroke="#102c4a" stroke-width="4.8"/>
+        <path d="M8 20H42 M48 20H76" stroke="#102c4a" stroke-width="2.8"/><path d="M8 28H76" stroke="#102c4a" stroke-width="1.5" opacity=".65"/><rect x="8" y="34" width="29" height="23" rx=".9" fill="#102c4a" opacity=".20"/><path d="M10 53l10-12 5 5 10-8" fill="none" stroke="#102c4a" stroke-width="1.5"/><path d="M44 36H75M44 43H75M44 50H69M8 63H76" stroke="#102c4a" stroke-width="1.9" opacity=".87"/>
+      </g>
+    </g></g>
+<g transform="translate(85 13) rotate(0 35 41)" opacity="1">
+      <g transform="scale(0.8333 1.1714)">
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" transform="translate(2.4 3.0)" fill="#263c57" opacity=".19"/>
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" fill="#fffdf8" stroke="#8d2d50" stroke-width="2.1" stroke-linejoin="round"/>
+        <path d="M8 11H76" stroke="#8d2d50" stroke-width="4.8"/>
+        <path d="M8 20H57 M8 28H76" stroke="#8d2d50" stroke-width="2.6"/><path d="M8 36H39M8 43H39M8 50H32M8 56H38" stroke="#8d2d50" stroke-width="1.9" opacity=".87"/><rect x="46" y="34" width="30" height="23" rx=".9" fill="#8d2d50" opacity=".20"/><path d="M48 52l9-7 6 5 11-10" fill="none" stroke="#8d2d50" stroke-width="1.5"/><path d="M8 63H76" stroke="#8d2d50" stroke-width="1.7"/>
+      </g>
+    </g>
+<g class="motion compare-right"><g transform="translate(157 18) rotate(7 35 39)" opacity="1">
+      <g transform="scale(0.8333 1.1143)">
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" transform="translate(2.4 3.0)" fill="#263c57" opacity=".19"/>
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" fill="#fffdf8" stroke="#102c4a" stroke-width="2.1" stroke-linejoin="round"/>
+        <path d="M8 11H76" stroke="#102c4a" stroke-width="4.8"/>
+        <path d="M8 20H72 M8 28H52" stroke="#102c4a" stroke-width="2.6"/><rect x="8" y="34" width="68" height="17" rx=".9" fill="#102c4a" opacity=".16"/><path d="M13 47l14-8 11 5 11-8 8 5 12-3" fill="none" stroke="#102c4a" stroke-width="1.7"/><path d="M8 57H38M45 57H76M8 63H26M45 63H67" stroke="#102c4a" stroke-width="1.7"/>
+      </g>
+    </g></g>
+<path d="M17 99H223" stroke="#102c4a" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="48" cy="99" r="3.2" fill="#102c4a"/><circle cx="120" cy="99" r="3.2" fill="#8d2d50"/><circle cx="192" cy="99" r="3.2" fill="#102c4a"/>
+
+</svg>

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="110" viewBox="0 0 240 110" role="img" aria-labelledby="title desc">
+<title id="title">Find what’s missing</title><desc id="desc">Two present reports and an outlined missing report highlighted by a magnifying glass.</desc>
+
+<path d="M16 104 C42 98 79 103 108 102 S164 99 223 104" stroke="#c8d0da" stroke-width="1.4" fill="none" opacity=".85"/>
+
+<g transform="translate(14 24) rotate(-5 32.5 36)" opacity="1">
+      <g transform="scale(0.7738 1.0286)">
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" transform="translate(2.4 3.0)" fill="#263c57" opacity=".19"/>
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" fill="#fffdf8" stroke="#102c4a" stroke-width="2.1" stroke-linejoin="round"/>
+        <path d="M8 11H76" stroke="#102c4a" stroke-width="4.8"/>
+        <path d="M8 20H42 M48 20H76" stroke="#102c4a" stroke-width="2.8"/><path d="M8 28H76" stroke="#102c4a" stroke-width="1.5" opacity=".65"/><rect x="8" y="34" width="29" height="23" rx=".9" fill="#102c4a" opacity=".20"/><path d="M10 53l10-12 5 5 10-8" fill="none" stroke="#102c4a" stroke-width="1.5"/><path d="M44 36H75M44 43H75M44 50H69M8 63H76" stroke="#102c4a" stroke-width="1.9" opacity=".87"/>
+      </g>
+    </g>
+<g transform="translate(73 16) rotate(2 33.5 40)" opacity="1">
+      <g transform="scale(0.7976 1.1429)">
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" transform="translate(2.4 3.0)" fill="#263c57" opacity=".19"/>
+        <path d="M3 0 L15 2 L28 0 L39 1 L51 0 L62 2 L75 1 L84 0 L84 16 L82 27 L84 40 L82 55 L84 69 L72 68 L63 70 L52 68 L42 69 L30 67 L19 70 L9 68 L0 70 L1 56 L0 45 L2 33 L0 21 L1 8 Z" fill="#fffdf8" stroke="#102c4a" stroke-width="2.1" stroke-linejoin="round"/>
+        <path d="M8 11H76" stroke="#102c4a" stroke-width="4.8"/>
+        <path d="M8 20H57 M8 28H76" stroke="#102c4a" stroke-width="2.6"/><path d="M8 36H39M8 43H39M8 50H32M8 56H38" stroke="#102c4a" stroke-width="1.9" opacity=".87"/><rect x="46" y="34" width="30" height="23" rx=".9" fill="#102c4a" opacity=".20"/><path d="M48 52l9-7 6 5 11-10" fill="none" stroke="#102c4a" stroke-width="1.5"/><path d="M8 63H76" stroke="#102c4a" stroke-width="1.7"/>
+      </g>
+    </g>
+<path d="M152 15 161 17 173 15 185 17 197 15 210 17 223 15V88 L213 87 199 90 186 87 173 89 160 87 151 90 Z" fill="#f0dce6" fill-opacity=".48" stroke="#8d2d50" stroke-width="2.1" stroke-dasharray="4 4" stroke-linejoin="round"/>
+<path d="M163 29h49M163 38h28M195 38h17M163 47h49M163 56h33M163 66h49" stroke="#8d2d50" stroke-width="1.9" stroke-dasharray="2 3" opacity=".44"/>
+<g class="motion search">
+  <circle cx="182" cy="52" r="28" stroke="#102c4a" stroke-width="4.2" fill="#fffdf8" fill-opacity=".62"/>
+  <path d="M202 72l21 22" stroke="#102c4a" stroke-width="8" stroke-linecap="round"/>
+  <path d="M176 46h13 M182.5 39.5v13" stroke="#8d2d50" stroke-width="2.7" stroke-linecap="round"/>
+</g>
+
+</svg>

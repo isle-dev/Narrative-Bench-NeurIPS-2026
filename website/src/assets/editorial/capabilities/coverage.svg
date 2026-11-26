@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="110" viewBox="0 0 240 110" role="img" aria-labelledby="title desc">
+<title id="title">Preserve coverage under confirmatory queries</title><desc id="desc">Two differently framed prompts lead to the same three narratives, maintaining coverage across frames.</desc>
+<style>
+      .motion { transform-box: fill-box; transform-origin: center; }
+      @media screen and (prefers-reduced-motion: no-preference) {
+        .select-pop { animation: select-pop 6s ease-in-out infinite; }
+        .select-trace { animation: select-trace 6s ease-in-out infinite; }
+        .excluded { animation: excluded 6s ease-in-out infinite; }
+        .search { animation: search 5.2s ease-in-out infinite; }
+        .compare-left { animation: compare-left 5.8s ease-in-out infinite; }
+        .compare-right { animation: compare-right 5.8s ease-in-out infinite; }
+        .prompt-wave { animation: pulse 5.8s ease-in-out infinite; }
+        .equal-mark { animation: pulse 6.5s ease-in-out infinite; }
+      }
+      @media print, (prefers-reduced-motion: reduce) { .motion, .select-trace { animation: none!important; } }
+      @keyframes select-pop { 0%,100% { transform: translateY(0); } 28%,46% {transform:translateY(-3px);} 66% {transform:translateY(0);} }
+      @keyframes select-trace { 0%,100%{opacity:1;} 35%{opacity:.52;} 60%{opacity:1;} }
+      @keyframes excluded { 0%,100%{transform:translateX(0) rotate(0deg);} 35%,48%{transform:translateX(4px) rotate(1.2deg);} 75%{transform:translateX(0) rotate(0deg);} }
+      @keyframes search {0%,100%{transform:translate(0,0);} 32%,48%{transform:translate(-5px,-1px);} 70%{transform:translate(0,0);} }
+      @keyframes compare-left {0%,100%{transform:translateX(0);} 35%,52%{transform:translateX(-3px);} 75%{transform:translateX(0);} }
+      @keyframes compare-right {0%,100%{transform:translateX(0);} 35%,52%{transform:translateX(3px);} 75%{transform:translateX(0);} }
+      @keyframes pulse {0%,100%{opacity:1;} 40%{opacity:.54;} 62%{opacity:1;}}
+</style>
+<path d="M16 104 C42 98 79 103 108 102 S164 99 223 104" stroke="#c8d0da" stroke-width="1.4" fill="none" opacity=".85"/>
+
+<path d="M9 14 L74 12 86 22 86 39 74 50 37 50 26 57 26 50 9 50Z" fill="#dce6f0" stroke="#102c4a" stroke-width="2.3" stroke-linejoin="round"/>
+<path d="M19 23H71M19 30H62M19 37H68" stroke="#102c4a" stroke-width="2.5"/>
+<path d="M9 64 L74 62 86 72 86 88 74 99 38 99 27 106 27 99 9 99Z" fill="#f0dce6" stroke="#8d2d50" stroke-width="2.3" stroke-linejoin="round"/>
+<path d="M19 73H55M19 81H60M19 88H47" stroke="#8d2d50" stroke-width="2.5"/>
+<path d="M59 76h13m-5-5 5 5-5 5" stroke="#8d2d50" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<g class="motion prompt-wave">
+  <path d="M88 32H107 M101 26L107 32L101 38" stroke="#102c4a" stroke-width="2.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M88 81H107 M101 75L107 81L101 87" stroke="#8d2d50" stroke-width="2.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g transform="translate(116 15) scale(1)">
+      <path d="M0 1 10 0 21 1 32 0 32 29 22 28 11 30 0 29z" fill="#fffdf8" stroke="#102c4a" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M5 7h22" stroke="#102c4a" stroke-width="3"/>
+      <path d="M5 13h22m-22 5h22m-22 5h16" stroke="#102c4a" stroke-width="1.65"/>
+    </g>
+<g transform="translate(153 15) scale(1)">
+      <path d="M0 1 10 0 21 1 32 0 32 29 22 28 11 30 0 29z" fill="#f0dce6" stroke="#8d2d50" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M5 7h22" stroke="#8d2d50" stroke-width="3"/>
+      <path d="M5 13h22m-22 5h22m-22 5h16" stroke="#8d2d50" stroke-width="1.65"/>
+    </g>
+<g transform="translate(190 15) scale(1)">
+      <path d="M0 1 10 0 21 1 32 0 32 29 22 28 11 30 0 29z" fill="#fffdf8" stroke="#102c4a" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M5 7h22" stroke="#102c4a" stroke-width="3"/>
+      <path d="M5 13h22m-22 5h22m-22 5h16" stroke="#102c4a" stroke-width="1.65"/>
+    </g>
+<g transform="translate(116 64) scale(1)">
+      <path d="M0 1 10 0 21 1 32 0 32 29 22 28 11 30 0 29z" fill="#fffdf8" stroke="#102c4a" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M5 7h22" stroke="#102c4a" stroke-width="3"/>
+      <path d="M5 13h22m-22 5h22m-22 5h16" stroke="#102c4a" stroke-width="1.65"/>
+    </g>
+<g transform="translate(153 64) scale(1)">
+      <path d="M0 1 10 0 21 1 32 0 32 29 22 28 11 30 0 29z" fill="#f0dce6" stroke="#8d2d50" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M5 7h22" stroke="#8d2d50" stroke-width="3"/>
+      <path d="M5 13h22m-22 5h22m-22 5h16" stroke="#8d2d50" stroke-width="1.65"/>
+    </g>
+<g transform="translate(190 64) scale(1)">
+      <path d="M0 1 10 0 21 1 32 0 32 29 22 28 11 30 0 29z" fill="#fffdf8" stroke="#102c4a" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M5 7h22" stroke="#102c4a" stroke-width="3"/>
+      <path d="M5 13h22m-22 5h22m-22 5h16" stroke="#102c4a" stroke-width="1.65"/>
+    </g>
+<path d="M128 48V59M165 48V59M202 48V59" stroke="#a8b6c5" stroke-width="1.5" stroke-dasharray="2 3"/>
+
+</svg>
